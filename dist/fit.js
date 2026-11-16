@@ -272,6 +272,16 @@ function start() {
         : 'Video estimates appear here after you mark both views. You can replace any value with a tape measurement.';
   }
   document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => changeMode(button.dataset.mode)));
+  // Android / non-LiDAR phones: buttons in the LiDAR panel switch to the tape or video modes.
+  document.querySelectorAll('[data-goto]').forEach(button => button.addEventListener('click', () => {
+    changeMode(button.dataset.goto);
+    document.querySelector('.modes').scrollIntoView({behavior: 'smooth', block: 'start'});
+  }));
+  if (/Android/i.test(navigator.userAgent)) {
+    const note = document.getElementById('android-note');
+    note.classList.add('is-android');
+    note.querySelector('h3').textContent = 'You are on an Android phone: use tape or video instead';
+  }
   $('leg').addEventListener('change', () => {
     clearVideo();
     state.leg = $('leg').value;

@@ -388,6 +388,19 @@ video {
 .rules ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; }
 .rules li + li { margin-top: 5px; }
 
+.android-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #e3d3a6;
+  border-radius: 12px;
+  background: #fbf6e6;
+}
+
+.android-note h3 { margin-top: 0 !important; }
+.android-note p, .android-note ul { font-size: 14px; }
+.android-note ul { margin: 8px 0 0; padding-left: 18px; }
+.android-note.is-android { border-width: 2px; border-color: #d4a72c; }
+
 #annotation h3 { margin: 16px 0 3px; }
 
 .measurement-fields {

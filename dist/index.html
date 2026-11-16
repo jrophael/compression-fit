@@ -48,8 +48,8 @@
         <!-- Video capture and manual annotation (assisted and self-scan modes) -->
         <section class="card" id="video-panel" hidden>
           <h2 id="video-title">Assisted video</h2>
-          <p id="mode-instructions" class="secondary"></p>
-          <p class="field-help">Print the calibration target below. Check its rectangle measures exactly 100 × 150 mm. Use a flat, upright target and keep the bare leg evenly lit. Keep the lens and zoom fixed.</p>
+          <ol id="mode-steps" class="steps"></ol>
+          <p class="field-help">Use even light, a flat target and a fixed lens and zoom. Without the printed target in view, the video cannot be measured.</p>
 
           <div class="actions">
             <button type="button" class="outline" data-print="target">Print scale target</button>
@@ -108,6 +108,14 @@
         <section class="card" id="fit-panel">
           <h2>Check a stocking size</h2>
           <p class="secondary" id="fit-explanation">Select a leg and enter its measurements in centimetres.</p>
+          <ol id="tape-steps" class="steps">
+            <li>Use a soft, non-stretch tape, or tap Print fitting tape and check its 10 cm line with a ruler.</li>
+            <li>Choose the leg below. Measure each leg separately.</li>
+            <li>Ankle: measure around the narrowest point just above the ankle bone.</li>
+            <li>Calf: measure around the widest point of the calf.</li>
+            <li>Length: stand barefoot with the foot flat, and measure from the floor to two finger widths below the crease behind the knee.</li>
+            <li>Keep the tape snug and level, enter the three values in centimetres, and tap Find stocking size.</li>
+          </ol>
           <form id="fit-form">
             <label class="leg-select">Leg
               <select id="leg">

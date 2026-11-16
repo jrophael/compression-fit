@@ -125,6 +125,29 @@ function start() {
     'Mark the cuff point two finger widths below the back of the knee crease.'
   ];
 
+  const steps = {
+    assisted: [
+      'Tap Print scale target and print two copies at 100%. Check each rectangle measures exactly 100 × 150 mm with a ruler.',
+      'The wearer stands barefoot and upright, weight on both feet, with the leg bare to the knee.',
+      'Tape one target upright facing the front of the leg and one facing the side. Place each beside the leg at mid-calf height, as far from the camera as the middle of the leg.',
+      'The helper holds the phone at shin height about 1 m away, with zoom off. Tap Open camera, then Start recording.',
+      'Film the front of the leg and hold still for 2 seconds. Walk round to the side and hold still for 2 seconds. Tap Stop recording.',
+      'Scrub the video to a sharp front view and tap Use this front frame. Tap the 8 points in the order shown, starting with the four corners of the target.',
+      'Scrub to a sharp side view and tap Use this side frame. Tap the 10 points shown, including the floor and the cuff point.',
+      'The estimates appear in Check a stocking size. Tap Find stocking size.'
+    ],
+    self: [
+      'Tap Print scale target and print at 100%. Check the rectangle measures exactly 100 × 150 mm with a ruler.',
+      'Prop the phone upright at shin height about 1 m away, with zoom off. Mark a spot on the floor to stand on.',
+      'Tape the target upright beside that spot at mid-calf height, as far from the camera as the middle of your leg.',
+      'Stand barefoot on the spot with the leg bare to the knee. Tap Open camera, then Start recording.',
+      'Follow the spoken prompts. Face the camera and hold still, then make a quarter turn on the same spot and hold still with the leg straight. Recording stops by itself.',
+      'Scrub to a sharp front view and tap Use this front frame. Tap the 8 points in the order shown, starting with the four corners of the target.',
+      'Scrub to a sharp side view and tap Use this side frame. Tap the 10 points shown, including the floor and the cuff point.',
+      'The estimates appear in Check a stocking size. Tap Find stocking size.'
+    ]
+  };
+
   function status(message) {
     $('capture-status').textContent = message;
     $('capture-status').hidden = !message;
@@ -234,9 +257,14 @@ function start() {
     $('lidar-panel').hidden = mode !== 'lidar';
     if (mode === 'lidar') renderScans();
     $('video-title').textContent = mode === 'assisted' ? 'Assisted video' : 'Self-scan';
-    $('mode-instructions').textContent = mode === 'assisted'
-      ? 'Keep the wearer still. Walk the phone from the front to the side in one clip, pausing square-on at both views. Print two targets and place one upright facing each view at the same depth as the leg’s centre.'
-      : 'Prop the phone upright. Put one target upright beside the leg, at the same depth as its centre. Record the front, then turn a quarter turn on the same floor mark and pause with the leg straight.';
+    if (mode === 'assisted' || mode === 'self') {
+      $('mode-steps').replaceChildren(...steps[mode].map(text => {
+        const item = document.createElement('li');
+        item.textContent = text;
+        return item;
+      }));
+    }
+    $('tape-steps').hidden = mode !== 'tape';
     $('fit-explanation').textContent = mode === 'tape'
       ? 'Select a leg and enter its measurements in centimetres.'
       : mode === 'lidar'

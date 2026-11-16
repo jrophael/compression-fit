@@ -94,6 +94,10 @@ for (const c of cases) {
     `  length err ${errors.length.toFixed(2)} cm  tilt ${r.tilt.toFixed(1)}°` + (r.warnings.length ? '  warnings: ' + r.warnings.join(' ') : ''));
 }
 
+// A one-sided scan (leg flattened to a thin shell) and a seated, tilted leg are refused.
+assert.throws(() => Scan.measureScan(simulate({...baseLeg, ax: 1.6, ay: 0.25}, {seed: 31, samples: 90000, noise: 0.001, tilt: 0, outliers: 0})), /only one side/);
+assert.throws(() => Scan.measureScan(simulate(baseLeg, {seed: 32, samples: 90000, noise: 0.001, tilt: 27, outliers: 0})), /tilted by/);
+
 // Agreement gate.
 const a = {ankle: 21.0, calf: 38.0, length: 40.0};
 assert.strictEqual(Scan.compareScans(a, {ankle: 21.8, calf: 38.9, length: 40.5}).agree, true);

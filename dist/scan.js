@@ -239,6 +239,14 @@ function sectionCircumference(us, vs) {
   }
   if (coverage < MIN_COVERAGE || longestGap * 360 / SECTOR_COUNT > 45) return {circumference: null, coverage};
   if (outline.some(([x, y]) => !Number.isFinite(x + y))) return {circumference: null, coverage};
+  // Shape check: a leg section is roughly round (width up to about 1.6 x depth).
+  // A much flatter outline means only one side of the leg was captured.
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const [x, y] of outline) { sxx += (x - cu) ** 2; syy += (y - cv) ** 2; sxy += (x - cu) * (y - cv); }
+  const tr = sxx + syy, det = sxx * syy - sxy * sxy;
+  const l1 = tr / 2 + Math.sqrt(Math.max(0, tr * tr / 4 - det)), l2 = tr / 2 - Math.sqrt(Math.max(0, tr * tr / 4 - det));
+  const aspect = l2 > 0 ? Math.sqrt(l1 / l2) : Infinity;
+  if (aspect > 2.2) return {circumference: null, coverage, flat: true};
   return {circumference: convexHullPerimeter(outline), coverage};
 }
 
@@ -300,7 +308,8 @@ function measureScan(scan) {
   const norm = Math.hypot(bx, 1, bz);
   const axis = [bx / norm, 1 / norm, bz / norm];
   const tilt = Math.acos(axis[1]) * 180 / Math.PI;
-  if (tilt > 15) warnings.push('The leg looked tilted by ' + tilt.toFixed(0) + '°. Stand upright with weight on both feet.');
+  if (tilt > 20) throw new Error('The leg is tilted by ' + tilt.toFixed(0) + '°. Scan the wearer standing upright with weight on both feet, not sitting.');
+  if (tilt > 12) warnings.push('The leg looked tilted by ' + tilt.toFixed(0) + '°. Stand upright with weight on both feet.');
   // Basis perpendicular to the axis.
   let e1 = [axis[1], -axis[0], 0];
   const e1n = Math.hypot(...e1); e1 = e1.map(x => x / e1n);
@@ -337,6 +346,11 @@ function measureScan(scan) {
     if (!found || found.distance > 0.05) { profile.push({height, circumference: null, coverage: 0}); continue; }
     const section = sectionCircumference(found.group.members.map(k => u[ids[k]]), found.group.members.map(k => v[ids[k]]));
     profile.push({height, ...section});
+  }
+  const flatSections = profile.filter(p => p.flat).length;
+  const measured = profile.filter(p => p.circumference !== null).length;
+  if (flatSections > 0.3 * (flatSections + measured)) {
+    throw new Error('The scan caught only one side of the leg (it is flat in cross-section). Walk all the way around the leg, including behind it and between the legs.');
   }
   // Light smoothing: median of 3, then mean of 5 valid neighbours.
   const raw = profile.map(p => p.circumference);

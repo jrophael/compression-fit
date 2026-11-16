@@ -388,8 +388,12 @@ function start() {
       ctx.stroke();
     }
     const required = selectedView === 'front' ? 8 : 10;
-    $('annotation-prompt').textContent = prompts[view.points.length < required ? view.points.length : -1] ??
-      (view.dimensions ? 'View measured. Select or mark the other view as needed.' : 'Review the marked points below.');
+    const other = selectedView === 'front' ? 'side' : 'front';
+    $('annotation-prompt').textContent = view.points.length < required
+      ? 'Step ' + (view.points.length + 1) + ' of ' + required + ': ' + prompts[view.points.length]
+      : view.dimensions
+        ? (state.views[other]?.dimensions ? 'Both views measured.' : 'This view is measured. Now save and mark the ' + other + ' view.')
+        : 'Review the marked points below.';
     $('undo').disabled = !view.points.length;
     $('clear-marks').disabled = !view.points.length;
   }

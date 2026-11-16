@@ -371,6 +371,18 @@ video {
 
 .upload small { color: var(--muted); font-weight: 400; }
 
+.rules {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #cbded0;
+  border-radius: 12px;
+  background: var(--mint);
+}
+
+.rules h3 { margin-top: 0 !important; }
+.rules ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; }
+.rules li + li { margin-top: 5px; }
+
 #annotation h3 { margin: 16px 0 3px; }
 
 .measurement-fields {

@@ -125,27 +125,46 @@ function start() {
     'Mark the cuff point two finger widths below the back of the knee crease.'
   ];
 
+  // Video-mode instructions: what you need, then three stages of short steps ([title, detail]).
   const steps = {
-    assisted: [
-      'Tap Print scale target and print two copies at 100%. Check each rectangle measures exactly 100 × 150 mm with a ruler.',
-      'The wearer stands barefoot and upright, weight on both feet, with the leg bare to the knee.',
-      'Tape one target upright facing the front of the leg and one facing the side. Place each beside the leg at mid-calf height, as far from the camera as the middle of the leg.',
-      'The helper holds the phone at shin height about 1 m away, with zoom off. Tap Open camera, then Start recording.',
-      'Film the front of the leg and hold still for 2 seconds. Walk round to the side and hold still for 2 seconds. Tap Stop recording.',
-      'Scrub the video to a sharp front view and tap Use this front frame. Tap the 8 points in the order shown, starting with the four corners of the target.',
-      'Scrub to a sharp side view and tap Use this side frame. Tap the 10 points shown, including the floor and the cuff point.',
-      'The estimates appear in Check a stocking size. Tap Find stocking size.'
-    ],
-    self: [
-      'Tap Print scale target and print at 100%. Check the rectangle measures exactly 100 × 150 mm with a ruler.',
-      'Prop the phone upright at shin height about 1 m away, with zoom off. Mark a spot on the floor to stand on.',
-      'Tape the target upright beside that spot at mid-calf height, as far from the camera as the middle of your leg.',
-      'Stand barefoot on the spot with the leg bare to the knee. Tap Open camera, then Start recording.',
-      'Follow the spoken prompts. Face the camera and hold still, then make a quarter turn on the same spot and hold still with the leg straight. Recording stops by itself.',
-      'Scrub to a sharp front view and tap Use this front frame. Tap the 8 points in the order shown, starting with the four corners of the target.',
-      'Scrub to a sharp side view and tap Use this side frame. Tap the 10 points shown, including the floor and the cuff point.',
-      'The estimates appear in Check a stocking size. Tap Find stocking size.'
-    ]
+    assisted: {
+      need: 'A helper to hold the phone, two printed scale targets, sticky tape, shorts and good, even light.',
+      stages: [
+        ['Get ready', [
+          ['Print the targets.', 'Tap Print scale target and print two copies at 100% (not “fit to page”). Check with a ruler that each rectangle is exactly 10 × 15 cm.'],
+          ['Bare the leg.', 'Barefoot, in shorts, with the leg bare to above the knee. Stand straight with your weight on both feet.'],
+          ['Place the targets.', 'Stick one target upright next to the calf so it faces the front, and one so it faces the side. Keep each one flat and level with the leg, not in front of it or behind it.']
+        ]],
+        ['Film', [
+          ['Set up the phone.', 'The helper stands one big step (about 1 m) away and holds the phone at shin height. No zoom. Tap Open camera, then Start recording.'],
+          ['Front, then side.', 'Film the front of the leg and hold still for 2 seconds. Walk round to the side and hold still for 2 seconds. Tap Stop recording.']
+        ]],
+        ['Mark the points', [
+          ['Front view.', 'Slide the video to a clear front view and tap Use this front frame. Tap each point the screen asks for, starting with the four corners of the target.'],
+          ['Side view.', 'Slide to a clear side view and tap Use this side frame. Tap each point asked for, including the floor and the spot just below the knee crease.'],
+          ['Get your size.', 'Check the numbers, then tap Find stocking size.']
+        ]]
+      ]
+    },
+    self: {
+      need: 'One printed scale target, sticky tape, something to prop the phone against, shorts and good, even light.',
+      stages: [
+        ['Get ready', [
+          ['Print the target.', 'Tap Print scale target and print at 100% (not “fit to page”). Check with a ruler that the rectangle is exactly 10 × 15 cm.'],
+          ['Prop up the phone.', 'Stand it upright at shin height, one big step (about 1 m) from where you will stand. No zoom. Mark your standing spot on the floor.'],
+          ['Place the target.', 'Stick it upright next to your standing spot, level with the calf, facing the phone.']
+        ]],
+        ['Film', [
+          ['Start recording.', 'Barefoot, leg bare to above the knee. Tap Open camera, then Start recording, and step onto your spot.'],
+          ['Follow the voice.', 'Face the phone and hold still. When told, make a quarter turn on the same spot and hold still with the leg straight. Recording stops by itself.']
+        ]],
+        ['Mark the points', [
+          ['Front view.', 'Slide the video to a clear front view and tap Use this front frame. Tap each point the screen asks for, starting with the four corners of the target.'],
+          ['Side view.', 'Slide to a clear side view and tap Use this side frame. Tap each point asked for, including the floor and the spot just below the knee crease.'],
+          ['Get your size.', 'Check the numbers, then tap Find stocking size.']
+        ]]
+      ]
+    }
   };
 
   function status(message) {
@@ -243,6 +262,32 @@ function start() {
     updateRecord();
   }
 
+  function renderVideoSteps(guide) {
+    const make = (tag, className, text) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text) node.textContent = text;
+      return node;
+    };
+    const need = make('p', 'need');
+    need.append(make('strong', '', 'You need: '), guide.need);
+    const parts = [need];
+    let number = 1;
+    guide.stages.forEach(([title, items], index) => {
+      parts.push(make('h3', 'stage', `${index + 1}. ${title}`));
+      const list = make('ol', 'steps');
+      list.start = number;
+      for (const [action, detail] of items) {
+        const item = make('li');
+        item.append(make('strong', '', action + ' '), detail);
+        list.append(item);
+        number += 1;
+      }
+      parts.push(list);
+    });
+    $('mode-steps').replaceChildren(...parts);
+  }
+
   function changeMode(mode) {
     if (mode === state.mode) return;
     clearEstimates();
@@ -258,11 +303,7 @@ function start() {
     if (mode === 'lidar') renderScans();
     $('video-title').textContent = mode === 'assisted' ? 'Assisted video' : 'Self-scan';
     if (mode === 'assisted' || mode === 'self') {
-      $('mode-steps').replaceChildren(...steps[mode].map(text => {
-        const item = document.createElement('li');
-        item.textContent = text;
-        return item;
-      }));
+      renderVideoSteps(steps[mode]);
     }
     $('tape-steps').hidden = mode !== 'tape';
     $('fit-explanation').textContent = mode === 'tape'

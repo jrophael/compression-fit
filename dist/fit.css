@@ -329,6 +329,18 @@ video {
 
 .steps li + li { margin-top: 4px; }
 
+.video-guide .need {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--mint);
+  font-size: 14px;
+}
+.video-guide .stage { margin: 16px 0 0 !important; font-size: 15px; }
+.video-guide .steps { margin-top: 6px; }
+.video-guide .steps li { line-height: 1.45; }
+.video-guide .steps strong { color: var(--ink, inherit); }
+
 .scan-table {
   width: 100%;
   border-collapse: collapse;

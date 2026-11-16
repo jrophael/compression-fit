@@ -1,0 +1,506 @@
+/* Compression Fit — screen and print styles */
+
+:root {
+  color-scheme: light;
+  --ink: #172d29;
+  --muted: #4d635c;
+  --accent: #175b49;
+  --line: #d9e4dd;
+  --paper: #f4f7f1;
+  --white: #fff;
+  --mint: #e5efe7;
+  --font: "Aptos", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---------- Base ---------- */
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.48 var(--font);
+}
+
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #398d73;
+  outline-offset: 3px;
+}
+
+h1, h2, p { margin: 0; }
+
+h1 {
+  font-size: clamp(38px, 6vw, 64px);
+  line-height: 1;
+  letter-spacing: -.055em;
+}
+
+h2 {
+  font-size: 23px;
+  line-height: 1.15;
+  letter-spacing: -.025em;
+}
+
+/* ---------- Page frame ---------- */
+
+.shell {
+  max-width: 1040px;
+  margin: auto;
+  padding-inline: 28px;
+}
+
+.site-header {
+  background: var(--white);
+  border-bottom: 1px solid var(--line);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+  font-weight: 760;
+  color: var(--ink);
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: white;
+  font-size: 17px;
+}
+
+.pill {
+  border-radius: 20px;
+  background: var(--mint);
+  color: #295647;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 5px 10px;
+}
+
+.intro { padding: 48px 0 28px; }
+
+.intro p {
+  color: var(--muted);
+  max-width: 565px;
+  margin-top: 14px;
+  font-size: 17px;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 25px 0 19px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- Mode selector ---------- */
+
+.modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mode {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  text-align: left;
+  min-height: 72px;
+  padding: 12px 17px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--white);
+  color: var(--ink);
+}
+
+.mode.active {
+  border-color: var(--accent);
+  background: var(--mint);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.mode strong,
+.mode small { display: block; }
+
+.mode small,
+.secondary,
+.field-help { color: var(--muted); }
+
+.mode small { font-size: 13px; }
+
+/* ---------- Layout and cards ---------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.card,
+.guide {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 25px;
+  background: var(--white);
+  min-width: 0;
+}
+
+.guide {
+  background: var(--mint);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guide p {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.secondary {
+  margin-top: 9px;
+  font-size: 14px;
+}
+
+.field-help {
+  font-size: 13px;
+  margin: 3px 0 9px;
+}
+
+/* ---------- Form controls ---------- */
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+input,
+select {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 0 10px;
+  border: 1px solid #bbcfc2;
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+details {
+  border-block: 1px solid var(--line);
+  margin: 19px 0 0;
+}
+
+summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 740;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.primary,
+.plain,
+.outline {
+  border-radius: 9px;
+  min-height: 44px;
+  padding: 9px 15px;
+  font-weight: 720;
+  font-size: 14px;
+  border: 1px solid transparent;
+}
+
+.primary {
+  background: var(--accent);
+  color: white;
+}
+
+.plain {
+  background: transparent;
+  color: var(--accent);
+}
+
+.outline {
+  border-color: #afc9bc;
+  background: white;
+  color: var(--accent);
+}
+
+button:disabled {
+  opacity: .48;
+  cursor: default;
+}
+
+button:not(:disabled):hover { filter: brightness(.94); }
+
+/* ---------- Results and guide ---------- */
+
+.results {
+  background: #eff6ef;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-top: 18px;
+  padding: 15px;
+}
+
+.results h3 {
+  margin: 0 0 7px;
+  font-size: 16px;
+}
+
+.results p {
+  font-size: 14px;
+  margin-top: 7px;
+}
+
+.guide-footer {
+  padding-top: 12px;
+  border-top: 1px solid #cbded0;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  gap: 3px;
+}
+
+video {
+  width: 100%;
+  max-height: 350px;
+  display: block;
+  object-fit: contain;
+}
+
+/* ---------- Sizing pilot ---------- */
+
+#video-panel { margin-bottom: 16px; }
+
+#annotation h3 { margin: 16px 0 3px; }
+
+.measurement-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.measurement-fields small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.leg-select {
+  max-width: 150px;
+  margin-top: 17px;
+}
+
+.guide dl {
+  margin: 0;
+  font-size: 14px;
+}
+
+.guide dt {
+  font-weight: 750;
+  margin-top: 8px;
+}
+
+.guide dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+.guide .outline { align-self: start; }
+
+.size-details {
+  margin: 0;
+  border-bottom: 0;
+}
+
+#chart {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+#chart table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+#chart th,
+#chart td {
+  border-bottom: 1px solid #cbded0;
+  padding: 5px 3px;
+  white-space: nowrap;
+}
+
+#preview,
+#mark-canvas {
+  width: 100%;
+  margin-top: 10px;
+  display: block;
+  background: #162c26;
+  border-radius: 8px;
+}
+
+#mark-canvas {
+  max-height: none;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.upload { margin-top: 12px; }
+
+.upload input {
+  height: auto;
+  padding: 8px;
+}
+
+#annotation-prompt {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.print-sheet { display: none; }
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 700px) {
+  .shell { padding-inline: 16px; }
+  .intro { padding: 34px 0 21px; }
+  .layout { grid-template-columns: 1fr; }
+  .card, .guide { padding: 18px; }
+  .mode { gap: 9px; padding: 10px; }
+  .mode small { font-size: 12px; }
+}
+
+@media (max-width: 550px) {
+  .modes { grid-template-columns: 1fr; gap: 6px; }
+  .mode { min-height: 52px; }
+  .measurement-fields { grid-template-columns: 1fr; }
+  .intro { padding-top: 31px; }
+}
+
+@media (max-width: 365px) {
+  .mode strong { font-size: 14px; }
+}
+
+/* ---------- Print: calibration target and fitting tape ---------- */
+
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@page tape-page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+    font: 12pt Arial, sans-serif;
+  }
+
+  body > header,
+  body > main { display: none !important; }
+
+  body.print-target #print-target,
+  body.print-tape #print-tape { display: block; }
+
+  #print-tape { page: tape-page; }
+
+  .print-sheet h1 {
+    font-size: 20pt;
+    letter-spacing: 0;
+    margin-bottom: 5mm;
+  }
+
+  .print-sheet p { margin-bottom: 6mm; }
+
+  /* Outer edge must print at exactly 100 x 150 mm. */
+  .target-rectangle {
+    box-sizing: border-box;
+    width: 100mm;
+    height: 150mm;
+    border: 1mm solid black;
+    margin: 8mm auto 0;
+  }
+
+  .ruler-strip {
+    position: relative;
+    height: 19mm;
+    width: 250mm;
+    margin: 6mm 0 6mm 4mm; /* inset so the 0 and 25 labels are not clipped */
+    border-block: 1px solid #000;
+  }
+
+  .ruler-mark {
+    position: absolute;
+    top: 0;
+    border-left: 1px solid #000;
+    height: 3mm;
+  }
+
+  .ruler-major { height: 6mm; }
+
+  .ruler-mark span {
+    position: absolute;
+    top: 8mm;
+    transform: translateX(-50%);
+    font-size: 8pt;
+  }
+
+  /* 10 cm check bar */
+  #ruler-check {
+    width: 100mm;
+    border-top: 1px solid black;
+    border-inline: 1px solid black;
+    height: 3mm;
+    margin: 8mm 0 3mm 4mm;
+  }
+}

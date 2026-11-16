@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="A knee-high compression stocking sizing pilot.">
+  <meta name="robots" content="noindex">
+  <title>Compression Fit</title>
+  <link rel="stylesheet" href="fit.css">
+  <script defer src="fit.js"></script>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="wordmark" href="./"><span class="logo" aria-hidden="true">+</span> Compression Fit</a>
+      <span class="pill">Private fitting pilot</span>
+    </div>
+  </header>
+
+  <main class="shell">
+
+    <section class="intro">
+      <h1>Find your stocking size.</h1>
+      <p>Choose a method to check the ankle band, calf cut and length for a knee-high stocking.</p>
+    </section>
+
+    <!-- Fitting method selector -->
+    <nav class="modes" aria-label="Fitting method">
+      <button type="button" class="mode active" data-mode="tape" aria-pressed="true">
+        <span><strong>Measure with tape</strong><small>Enter three measurements</small></span>
+      </button>
+      <button type="button" class="mode" data-mode="assisted" aria-pressed="false">
+        <span><strong>Assisted video</strong><small>Someone holds the phone</small></span>
+      </button>
+      <button type="button" class="mode" data-mode="self" aria-pressed="false">
+        <span><strong>Self-scan</strong><small>Prop up your phone</small></span>
+      </button>
+    </nav>
+
+    <div class="layout">
+      <div>
+
+        <!-- Video capture and manual annotation (assisted and self-scan modes) -->
+        <section class="card" id="video-panel" hidden>
+          <h2 id="video-title">Assisted video</h2>
+          <p id="mode-instructions" class="secondary"></p>
+          <p class="field-help">Print the calibration target below. Check its rectangle measures exactly 100 × 150 mm. Use a flat, upright target and keep the bare leg evenly lit. Keep the lens and zoom fixed.</p>
+
+          <div class="actions">
+            <button type="button" class="outline" data-print="target">Print scale target</button>
+            <button type="button" class="outline" id="camera-start">Open camera</button>
+            <button type="button" class="primary" id="record" hidden>Start recording</button>
+            <button type="button" class="plain" id="camera-close" hidden>Close camera</button>
+          </div>
+          <label class="upload">Or select a video <input type="file" id="video-file" accept="video/*"></label>
+          <p id="capture-status" class="secondary" role="status" hidden></p>
+          <video id="preview" playsinline muted hidden></video>
+
+          <div id="frame-controls" hidden>
+            <p class="field-help">Scrub to a sharp front or side frame. Pause and save each view to mark it.</p>
+            <div class="actions">
+              <button type="button" class="outline" data-frame="front">Use this front frame</button>
+              <button type="button" class="outline" data-frame="side">Use this side frame</button>
+            </div>
+          </div>
+
+          <div id="annotation" hidden>
+            <h3 id="annotation-title"></h3>
+            <p id="annotation-prompt" role="status"></p>
+            <canvas id="mark-canvas" aria-label="Frame for manual calibration and landmark selection"></canvas>
+            <div class="actions">
+              <button type="button" class="plain" id="undo">Undo point</button>
+              <button type="button" class="plain" id="clear-marks">Clear this view</button>
+            </div>
+            <p id="frame-status" class="field-help" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <!-- Measurement entry and size result (all modes) -->
+        <section class="card" id="fit-panel">
+          <h2>Check a stocking size</h2>
+          <p class="secondary" id="fit-explanation">Select a leg and enter its measurements in centimetres.</p>
+          <form id="fit-form">
+            <label class="leg-select">Leg
+              <select id="leg">
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+            <div class="measurement-fields">
+              <label>Ankle (cm) <input type="number" id="ankle" min="10" max="65" step="any" inputmode="decimal" required placeholder="e.g. 21"><small id="ankle-source">Tape</small></label>
+              <label>Calf (cm) <input type="number" id="calf" min="15" max="100" step="any" inputmode="decimal" required placeholder="e.g. 42"><small id="calf-source">Tape</small></label>
+              <label>Length (cm) <input type="number" id="length" min="15" max="80" step="any" inputmode="decimal" required placeholder="e.g. 39"><small id="length-source">Tape</small></label>
+            </div>
+            <div class="actions">
+              <button class="primary" type="submit">Find stocking size</button>
+              <button class="plain" type="reset">Clear this leg</button>
+            </div>
+          </form>
+          <div id="result" class="results" aria-live="polite" hidden></div>
+        </section>
+
+      </div>
+
+      <!-- Measuring guide and provisional chart -->
+      <aside class="guide">
+        <h2>Where to measure</h2>
+        <dl>
+          <dt>Ankle</dt>
+          <dd>Measure around the narrowest point above the ankle bone.</dd>
+          <dt>Calf</dt>
+          <dd>Measure around the widest point.</dd>
+          <dt>Length</dt>
+          <dd>Stand barefoot with your foot flat. Measure from the floor to two finger widths below the crease behind the knee.</dd>
+        </dl>
+        <div class="guide-footer">
+          <button type="button" class="outline" data-print="tape">Print fitting tape</button>
+          <p>A soft, non-stretch fabric tape also works. Keep it snug and level.</p>
+        </div>
+        <details class="size-details">
+          <summary>View provisional size chart</summary>
+          <p>Example ankle bands and calf cuts for evaluating both fitting methods. These are pilot sizes.</p>
+          <div id="chart"></div>
+        </details>
+      </aside>
+    </div>
+
+    <footer class="footer"><span>Compression Fit</span><span>Product sizing pilot</span></footer>
+  </main>
+
+  <!-- Print-only sheets (shown via body.print-target / body.print-tape) -->
+  <section id="print-target" class="print-sheet">
+    <h1>Camera calibration target</h1>
+    <p>Print at actual size (100%). Use a ruler to check the rectangle is 100 mm wide and 150 mm high. Mount this page upright on a rigid flat surface.</p>
+    <div class="target-rectangle" aria-hidden="true"></div>
+  </section>
+
+  <section id="print-tape" class="print-sheet">
+    <h1>Knee-high stocking fitting tape</h1>
+    <p>Print at actual size (100%). Check the 10 cm line against a ruler. Cut out the two strips and butt the two 25 cm ends together. Tape the join on the back.</p>
+    <div id="ruler-check"></div>
+    <div id="ruler-strips"></div>
+    <p>Record each leg separately. Measure the narrowest ankle above the ankle bone, the widest calf, and the floor-to-cuff length.</p>
+  </section>
+
+</body>
+</html>

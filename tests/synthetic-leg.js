@@ -11,7 +11,8 @@ function legRadius(h, th, leg) {
     + 0.030 * Math.exp(-(((h - 0.07) / 0.018) ** 2))   // malleoli
     - 0.025 * Math.exp(-(((h - 0.12) / 0.03) ** 2))    // narrowest ankle
     + 0.135 * Math.exp(-(((h - leg.calfH) / 0.11) ** 2)) // calf
-    + 0.05 * Math.max(0, (h - 0.12) / 0.3));
+    + 0.05 * Math.max(0, (h - 0.12) / 0.3)
+    + (leg.kneeH ? 0.06 / (1 + Math.exp(-(h - leg.kneeH) / 0.012)) : 0));
   const r0 = c / (2 * Math.PI);
   const ellipse = 1 / Math.sqrt((Math.cos(th) / leg.ax) ** 2 + (Math.sin(th) / leg.ay) ** 2);
   // Achilles groove (back, concave) and tibial crest (front, convex).

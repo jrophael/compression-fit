@@ -98,6 +98,20 @@ for (const c of cases) {
 assert.throws(() => Scan.measureScan(simulate({...baseLeg, ax: 1.6, ay: 0.25}, {seed: 31, samples: 90000, noise: 0.001, tilt: 0, outliers: 0})), /only one side/);
 assert.throws(() => Scan.measureScan(simulate(baseLeg, {seed: 32, samples: 90000, noise: 0.001, tilt: 27, outliers: 0})), /tilted by/);
 
+// Length from the scan: the leg narrows below the knee and widens at the knee.
+{
+  const kneeLeg = {...baseLeg, cuffH: 0.52, kneeH: 0.45};
+  const truth = truthProfile(kneeLeg).filter(p => p.h >= 0.3 && p.h <= 0.48);
+  const expected = truth.reduce((a, b) => (b.c < a.c ? b : a)).h * 100;
+  const scan = simulate(kneeLeg, {seed: 41, samples: 140000, noise: 0.002, tilt: 2, outliers: 0.01});
+  const r = Scan.measureScan({...scan, autoLength: true});
+  console.log(`Length from scan ${r.length.toFixed(1)} cm (narrowest below knee in the true shape ${expected.toFixed(1)} cm)`);
+  assert.ok(Math.abs(r.length - expected) <= 1.0, 'length from scan within 1 cm');
+  assert.strictEqual(r.lengthSource, 'scan');
+  // A scan that stops below the knee cannot give a length.
+  assert.throws(() => Scan.measureScan({...simulate(baseLeg, {seed: 42, samples: 90000, noise: 0.002, tilt: 0, outliers: 0}), autoLength: true}), /length could not be found/);
+}
+
 // Agreement gate.
 const a = {ankle: 21.0, calf: 38.0, length: 40.0};
 assert.strictEqual(Scan.compareScans(a, {ankle: 21.8, calf: 38.9, length: 40.5}).agree, true);

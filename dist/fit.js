@@ -628,17 +628,9 @@ function start() {
       }
       return;
     }
-    // A 3D model from a scanning app. The length comes from the tape value.
-    const length = $('length').valueAsNumber;
-    if (!(length >= 15 && length <= 80)) {
-      lidarStatus('Enter the Length by tape first (floor to two finger widths below the knee crease), then upload the scan.');
-      $('length').focus();
-      return;
-    }
-    if (state.sources[state.leg].length !== 'tape') {
-      state.records[state.leg].length = String(length);
-      state.sources[state.leg].length = 'tape';
-    }
+    // A 3D model from a scanning app. A tape Length is used if entered; otherwise it is found from the scan.
+    const tapeLength = state.sources[state.leg].length === 'tape' ? $('length').valueAsNumber : NaN;
+    const length = tapeLength >= 15 && tapeLength <= 80 ? tapeLength : NaN;
     lidarStatus('Reading ' + files.map(f => f.name).join(', ') + ' (' + (files.reduce((n, f) => n + f.size, 0) / 1e6).toFixed(1) + ' MB)…');
     await new Promise(resolve => setTimeout(resolve, 30));
     try {
@@ -648,7 +640,8 @@ function start() {
       renderScans();
       applyScans();
       const d = result.diagnostics;
-      $('lidar-status').textContent += ' (Read ' + d.format + ' in ' + (d.units === 'mm' ? 'millimetres' : 'metres') + '.)';
+      $('lidar-status').textContent += ' (Read ' + d.format + ' in ' + (d.units === 'mm' ? 'millimetres' : 'metres') + '. Length ' +
+        (result.lengthSource === 'scan' ? 'found from the scan' : 'from your tape value') + '.)';
     } catch (error) {
       lidarStatus('This scan could not be measured. ' + error.message);
     }

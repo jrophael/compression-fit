@@ -402,8 +402,9 @@
    * lengthCm: floor-to-cuff length by tape. Returns scan.js results plus diagnostics.
    */
   function measureModel(model, lengthCm) {
-    if (!(lengthCm >= 15 && lengthCm <= 80)) throw new Error('Enter the Length by tape first (floor to two finger widths below the knee crease), then upload the scan.');
-    const cuffHeight = lengthCm / 100;
+    // With no tape length, the length is found from the scan (it must reach above the knee).
+    const autoLength = !(lengthCm >= 15 && lengthCm <= 80);
+    const cuffHeight = autoLength ? 0.6 : lengthCm / 100;
     const warnings = [];
 
     // 1. Coarse sample for orientation, units and floor.
@@ -432,7 +433,7 @@
     // 3. Find the leg: a column of points at calf height that also reaches the ankle.
     const frame = [];
     for (let i = 0; i < coarseRaw.length; i += 3) frame.push(toFrame(coarseRaw, i));
-    const band = frame.filter(p => p[1] > Math.min(0.2, cuffHeight * 0.5) && p[1] < Math.min(0.34, cuffHeight - 0.03));
+    const band = frame.filter(p => p[1] > Math.min(0.2, cuffHeight * 0.5) && p[1] < Math.min(0.32, cuffHeight - 0.03));
     const groups = Scan.clusters2D(band.map(p => p[0]), band.map(p => p[2]), 0.015);
     const legs = [];
     for (const g of groups) {
@@ -467,7 +468,7 @@
         ints[n++] = Math.round(y * Scan.SCAN_UNITS_PER_METRE);
         ints[n++] = Math.round((z - leg.v) * Scan.SCAN_UNITS_PER_METRE);
       }
-      return Scan.measureScan({version: Scan.SCAN_FORMAT_VERSION, cuffHeight, points: ints.subarray(0, n)});
+      return Scan.measureScan({version: Scan.SCAN_FORMAT_VERSION, cuffHeight, autoLength, points: ints.subarray(0, n)});
     };
     let result = null, firstError = null, chosen = -1, complete = 0;
     for (let k = 0; k < Math.min(legs.length, 4); k++) {

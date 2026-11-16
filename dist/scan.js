@@ -31,7 +31,7 @@ const MIN_COVERAGE = 0.75;         // share of sectors that must contain surface
 
 function decodeScan(scan) {
   if (!scan || scan.version !== SCAN_FORMAT_VERSION) throw new Error('Unsupported scan file version.');
-  if (!(scan.cuffHeight > 0.15 && scan.cuffHeight < 0.8)) throw new Error('The cuff point height is outside 15–80 cm.');
+  if (!scan.autoLength && !(scan.cuffHeight > 0.15 && scan.cuffHeight < 0.8)) throw new Error('The cuff point height is outside 15–80 cm.');
   let ints;
   if (typeof scan.points === 'string') {
     const binary = typeof atob === 'function' ? atob(scan.points) : Buffer.from(scan.points, 'base64').toString('binary');
@@ -267,11 +267,67 @@ function landmarkValue(profile, centre, halfWidth) {
   return a * x * x + b * x + k;
 }
 
+/*
+ * Length from the scan (no cuff point): follow the leg upward in horizontal slices
+ * until it can no longer be separated, then find the narrowing just below the knee,
+ * the smallest circumference above the calf that is followed by the knee widening
+ * (at least 0.8 cm within 6 cm). Its height is the cuff height.
+ * Returns {height, profile} or null when the scan does not reach above the knee.
+ */
+function findCuffHeight(xs, ys, zs, count) {
+  const byHeight = new Map();
+  for (let i = 0; i < count; i++) {
+    const key = Math.round(ys[i] / 0.01);
+    if (Math.abs(ys[i] - key * 0.01) > 0.003) continue;
+    let list = byHeight.get(key);
+    if (!list) byHeight.set(key, list = []);
+    list.push(i);
+  }
+  const rows = [];
+  let previous = {u: 0, v: 0};
+  for (let key = 8; key <= 75; key++) {
+    const ids = byHeight.get(key) || [];
+    if (ids.length < 30) { if (rows.length) break; continue; }
+    const found = nearestCluster(clusters2D(ids.map(i => xs[i]), ids.map(i => zs[i])), previous.u, previous.v, 20);
+    // Stop where the leg merges with the other leg or the scan ends.
+    if (!found || (rows.length && found.distance > 0.03)) break;
+    const section = sectionCircumference(found.group.members.map(k => xs[ids[k]]), found.group.members.map(k => zs[ids[k]]));
+    if (section.circumference === null) break;
+    if (rows.length && Math.abs(section.circumference - rows[rows.length - 1].c) > 0.025) break;
+    previous = {u: found.group.u, v: found.group.v};
+    rows.push({h: key * 0.01, c: section.circumference});
+  }
+  if (rows.length < 20) return null;
+  const c = rows.map((r, i) => median(rows.slice(Math.max(0, i - 1), i + 2).map(x => x.c)));
+  for (let i = 1; i < rows.length - 1; i++) {
+    if (rows[i].h < 0.25) continue;
+    if (!(c[i] <= c[i - 1] && c[i] <= c[i + 1])) continue;
+    const below = Math.max(...c.slice(0, i).filter((_, k) => rows[k].h >= 0.15));
+    const above = c.slice(i + 1).filter((_, k) => rows[i + 1 + k].h <= rows[i].h + 0.06);
+    if (below - c[i] >= 0.01 && above.length && Math.max(...above) - c[i] >= 0.008) {
+      // Sub-centimetre position from a parabola through the neighbouring slices.
+      const curvature = c[i - 1] - 2 * c[i] + c[i + 1];
+      const offset = curvature > 1e-6 ? Math.max(-0.5, Math.min(0.5, (c[i - 1] - c[i + 1]) / (2 * curvature))) : 0;
+      return {height: rows[i].h + offset * 0.01, profile: rows.map((r, k) => ({height: r.h * 100, circumference: c[k] * 100}))};
+    }
+  }
+  return null;
+}
+
 function measureScan(scan) {
-  const {points, count, cuffHeight} = decodeScan(scan);
+  const decoded = decodeScan(scan);
+  const {points, count} = decoded;
+  let cuffHeight = decoded.cuffHeight;
   const xs = new Float64Array(count), ys = new Float64Array(count), zs = new Float64Array(count);
   for (let i = 0; i < count; i++) { xs[i] = points[3 * i]; ys[i] = points[3 * i + 1]; zs[i] = points[3 * i + 2]; }
   const warnings = [];
+  let lengthSource = 'cuff point';
+  if (scan.autoLength) {
+    const knee = findCuffHeight(xs, ys, zs, count);
+    if (!knee) throw new Error('The length could not be found from this scan. Scan up to just above the knee with the knees apart, or enter the Length by tape.');
+    cuffHeight = knee.height;
+    lengthSource = 'scan';
+  }
 
   // 1. Horizontal slices from the cuff down, following the leg.
   const byHeight = new Map();
@@ -392,6 +448,7 @@ function measureScan(scan) {
     ankle: ankleValue * 100,
     calf: calfValue * 100,
     length: cuffHeight * 100,
+    lengthSource,
     ankleHeight: ankle.height * 100,
     calfHeight: calf.height * 100,
     tilt,

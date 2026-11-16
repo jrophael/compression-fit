@@ -181,7 +181,7 @@ const writeXYZ = s => {
   // Unsupported and missing inputs give clear messages.
   await assert.rejects(Models.readModel([{name: 'scan.usdz', buffer: new ArrayBuffer(10)}]), /usdz format is not supported/);
   const model = await Models.readModel([{name: 'scan.obj', buffer: toBuffer(writeOBJ(scene))}]);
-  assert.throws(() => Models.measureModel(model, NaN), /Enter the Length by tape/);
+  assert.throws(() => Models.measureModel(model, NaN), /length could not be found/);
   console.log(`truth: ankle ${ankleTrue.toFixed(2)}, calf ${calfTrue.toFixed(2)}`);
   if (process.env.WRITE_FIXTURES) {
     const dir = path.join(__dirname, 'fixtures');

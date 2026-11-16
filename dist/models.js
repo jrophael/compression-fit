@@ -450,28 +450,46 @@
     const mid = frame.filter(p => p[1] > 0.05 && p[1] < 0.6);
     const mx = mid.reduce((s, p) => s + p[0], 0) / mid.length, mz = mid.reduce((s, p) => s + p[2], 0) / mid.length;
     legs.sort((a, b) => Math.hypot(a.u - mx, a.v - mz) - Math.hypot(b.u - mx, b.v - mz));
-    const leg = legs[0];
-    if (legs.length > 1) warnings.push('More than one leg was found; the one nearest the middle of the scan was measured. Crop the scan to one leg to be sure.');
 
-    // 4. Dense surface sample around that leg, relative to the floor below its centre.
-    const inRegion = (x, y, z) => {
-      const [fx, fy, fz] = toFrame([x, y, z], 0);
-      return fy > -0.01 && fy < cuffHeight + 0.1 && Math.hypot(fx - leg.u, fz - leg.v) < 0.3;
+    // 4. Measure each candidate leg (nearest the middle first) and keep the first one scanned all round.
+    const measureLeg = leg => {
+      const inRegion = (x, y, z) => {
+        const [fx, fy, fz] = toFrame([x, y, z], 0);
+        return fy > -0.01 && fy < cuffHeight + 0.1 && Math.hypot(fx - leg.u, fz - leg.v) < 0.3;
+      };
+      const dense = samplePoints(model, 0.0025 / units, inRegion, 600000);
+      const ints = new Int16Array(dense.length);
+      let n = 0;
+      for (let i = 0; i < dense.length; i += 3) {
+        const [x, y, z] = toFrame(dense, i);
+        if (y < 0.01) continue;
+        ints[n++] = Math.round((x - leg.u) * Scan.SCAN_UNITS_PER_METRE);
+        ints[n++] = Math.round(y * Scan.SCAN_UNITS_PER_METRE);
+        ints[n++] = Math.round((z - leg.v) * Scan.SCAN_UNITS_PER_METRE);
+      }
+      return Scan.measureScan({version: Scan.SCAN_FORMAT_VERSION, cuffHeight, points: ints.subarray(0, n)});
     };
-    const dense = samplePoints(model, 0.0025 / units, inRegion, 600000);
-    const ints = new Int16Array(dense.length);
-    let n = 0;
-    for (let i = 0; i < dense.length; i += 3) {
-      const [x, y, z] = toFrame(dense, i);
-      if (y < 0.01) continue;
-      ints[n++] = Math.round((x - leg.u) * Scan.SCAN_UNITS_PER_METRE);
-      ints[n++] = Math.round(y * Scan.SCAN_UNITS_PER_METRE);
-      ints[n++] = Math.round((z - leg.v) * Scan.SCAN_UNITS_PER_METRE);
+    let result = null, firstError = null, chosen = -1, complete = 0;
+    for (let k = 0; k < Math.min(legs.length, 4); k++) {
+      try {
+        const r = measureLeg(legs[k]);
+        complete++;
+        if (!result) { result = r; chosen = k; }
+      } catch (error) {
+        if (!firstError) firstError = error;
+      }
     }
-    const result = Scan.measureScan({version: Scan.SCAN_FORMAT_VERSION, cuffHeight, points: ints.subarray(0, n)});
+    if (!result) throw firstError;
+    if (legs.length > 1) {
+      warnings.push(chosen > 0
+        ? 'Only one leg was scanned all the way round, and that leg was measured. Make sure it is the leg selected.'
+        : complete > 1
+          ? 'Both legs were scanned all round; the one nearest the middle of the scan was measured. Crop the scan to one leg to be sure.'
+          : 'More than one leg was in the scan; the complete one was measured. Make sure it is the leg selected.');
+    }
     result.warnings = warnings.concat(result.warnings);
     result.diagnostics = {format: model.format, source: model.sourceName, units: units === 1 ? 'm' : 'mm',
-      up: (up.sign > 0 ? '+' : '-') + 'xyz'[up.axis], legsFound: legs.length};
+      up: (up.sign > 0 ? '+' : '-') + 'xyz'[up.axis], legsFound: legs.length, legMeasured: chosen + 1};
     return result;
   }
 

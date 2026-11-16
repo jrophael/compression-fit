@@ -443,11 +443,16 @@ function measureScan(scan) {
 
   const ankleValue = landmarkValue(profile, ankle.height, 0.02) ?? ankle.smoothed;
   const calfValue = landmarkValue(profile, calf.height, 0.04) ?? calf.smoothed;
+  // Below-knee (top band) circumference: where the stocking's top band sits, just under the cuff point.
+  const band = profile.filter(p => p.smoothed !== null && p.height >= cuffHeight - 0.025 && p.height <= cuffHeight);
+  const belowKnee = band.length >= 2 ? band.reduce((sum, p) => sum + p.smoothed, 0) / band.length : null;
+  if (belowKnee === null) warnings.push('The top of the calf, just below the knee, was not fully scanned, so the top-band circumference is missing.');
 
   return {
     ankle: ankleValue * 100,
     calf: calfValue * 100,
     length: cuffHeight * 100,
+    belowKnee: belowKnee === null ? null : belowKnee * 100,
     lengthSource,
     ankleHeight: ankle.height * 100,
     calfHeight: calf.height * 100,

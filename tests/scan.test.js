@@ -85,13 +85,15 @@ for (const c of cases) {
   const ankleTrue = Math.min(...truth.filter(p => p.h >= 0.05 && p.h <= 0.22).map(p => p.c)) * 100;
   const calfTrue = Math.max(...truth.filter(p => p.h >= 0.1 && p.h <= c.leg.cuffH - 0.02).map(p => p.c)) * 100;
   const r = Scan.measureScan(simulate(c.leg, c.opts));
-  const errors = {ankle: r.ankle - ankleTrue, calf: r.calf - calfTrue, length: r.length - c.leg.cuffH * 100};
+  const bandTrue = truth.filter(p => p.h >= c.leg.cuffH - 0.025 && p.h <= c.leg.cuffH - 0.01);
+  const belowKneeTrue = bandTrue.reduce((sum, p) => sum + p.c, 0) / bandTrue.length * 100;
+  const errors = {ankle: r.ankle - ankleTrue, calf: r.calf - calfTrue, length: r.length - c.leg.cuffH * 100, belowKnee: r.belowKnee - belowKneeTrue};
   const ok = Object.values(errors).every(e => Math.abs(e) <= 0.5); // half the 1 cm budget, leaving room for real-world error
   if (!ok) failures++;
   console.log((ok ? 'PASS ' : 'FAIL ') + c.name.padEnd(42) +
     ` ankle ${r.ankle.toFixed(2)} (true ${ankleTrue.toFixed(2)}, err ${errors.ankle.toFixed(2)})` +
     `  calf ${r.calf.toFixed(2)} (true ${calfTrue.toFixed(2)}, err ${errors.calf.toFixed(2)})` +
-    `  length err ${errors.length.toFixed(2)} cm  tilt ${r.tilt.toFixed(1)}°` + (r.warnings.length ? '  warnings: ' + r.warnings.join(' ') : ''));
+    `  below-knee err ${errors.belowKnee.toFixed(2)}  length err ${errors.length.toFixed(2)} cm  tilt ${r.tilt.toFixed(1)}°` + (r.warnings.length ? '  warnings: ' + r.warnings.join(' ') : ''));
 }
 
 // A one-sided scan (leg flattened to a thin shell) and a seated, tilted leg are refused.

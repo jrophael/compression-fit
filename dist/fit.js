@@ -542,9 +542,9 @@ function start() {
     const container = $('lidar-scans');
     if (!scans.length) { container.replaceChildren(); return; }
     const rowsHtml = scans.map((scan, i) =>
-      '<tr><th scope="row">Scan '+(i+1)+'</th><td>'+scan.ankle.toFixed(1)+'</td><td>'+scan.calf.toFixed(1)+'</td><td>'+scan.length.toFixed(1)+'</td></tr>').join('');
+      '<tr><th scope="row">Scan '+(i+1)+'</th><td>'+scan.ankle.toFixed(1)+'</td><td>'+scan.calf.toFixed(1)+'</td><td>'+(scan.belowKnee == null ? '–' : scan.belowKnee.toFixed(1))+'</td><td>'+scan.length.toFixed(1)+'</td></tr>').join('');
     const latest = scans[scans.length - 1];
-    container.innerHTML = '<table class="scan-table"><thead><tr><th>'+(state.leg === 'left' ? 'Left' : 'Right')+' leg (cm)</th><th>Ankle</th><th>Calf</th><th>Length</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>' +
+    container.innerHTML = '<table class="scan-table"><thead><tr><th>'+(state.leg === 'left' ? 'Left' : 'Right')+' leg (cm)</th><th>Ankle</th><th>Calf</th><th>Below knee</th><th>Length</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>' +
       '<p class="field-help">Latest scan: ankle at '+latest.ankleHeight.toFixed(1)+' cm and calf at '+latest.calfHeight.toFixed(1)+' cm above the floor. Leg tilt '+latest.tilt.toFixed(0)+'°.</p>' +
       scanSvg(latest.profile, latest);
   }
@@ -570,7 +570,9 @@ function start() {
       state.sources[state.leg][field] = 'scan';
     }
     updateRecord();
-    lidarStatus('The last two scans agree within 1 cm. Their average is entered in Check a stocking size.' + warnings);
+    const knees = [scans[scans.length - 2].belowKnee, latest.belowKnee].filter(x => x != null);
+    const kneeNote = knees.length ? ' Below-knee (top band) circumference: ' + (knees.reduce((a, b) => a + b, 0) / knees.length).toFixed(1) + ' cm.' : '';
+    lidarStatus('The last two scans agree within 1 cm. Their average is entered in Check a stocking size.' + kneeNote + warnings);
   }
 
   function receiveScan(scan) {

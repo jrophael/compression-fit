@@ -371,6 +371,11 @@ video {
 
 .upload small { color: var(--muted); font-weight: 400; }
 
+#viewer-wrap { margin-top: 12px; }
+#scan-viewer { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+#scan-viewer canvas { display: block; width: 100% !important; height: auto; cursor: crosshair; }
+.pick-readout { font-weight: 700; font-size: 15px; }
+
 .rules {
   margin-top: 14px;
   padding: 12px 14px;

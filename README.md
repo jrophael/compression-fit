@@ -22,6 +22,7 @@ Pushing to `main` runs `.github/workflows/pages.yml`, which checks the sizing lo
 - `dist/fit.css` controls screen and print layout.
 - `dist/fit.js` contains the size matrix, matching logic, camera capture, frame annotation and measurement calculations.
 - `dist/scan.js` measures LiDAR scans: leg axis, cross-section outlines, ankle and calf circumference, and length.
+- `dist/viewer.js` shows the uploaded scan in 3D with its colour texture (three.js, vendored under `dist/vendor/three`, MIT). The red ring marks the length; tapping the cuff point sets floor-to-cuff length.
 - `dist/models.js` reads 3D models exported by free scanning apps (OBJ, GLB, glTF or ZIP, PLY, STL, XYZ). It detects units, the up axis, the floor and the leg, then passes them to `scan.js`.
 - `ios/` is the iPhone app (WKWebView shell plus native ARKit LiDAR scanner). See `ios/README.md`.
 - `tests/scan.test.js` and `tests/models.test.js` check measurement against synthetic legs of known size, the second through every supported export format. `tests/fixtures/` holds sample scans and models for the browser.

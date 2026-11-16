@@ -491,6 +491,9 @@
     result.warnings = warnings.concat(result.warnings);
     result.diagnostics = {format: model.format, source: model.sourceName, units: units === 1 ? 'm' : 'mm',
       up: (up.sign > 0 ? '+' : '-') + 'xyz'[up.axis], legsFound: legs.length, legMeasured: chosen + 1};
+    // Model-to-measurement frame (metres, y up, floor at 0, measured leg on the y axis), for the 3D viewer:
+    // frame = (units*p[others0] - u, sign*units*p[axis] - floor, sign*units*p[others1] - v).
+    result.frame = {units, axis: up.axis, sign: up.sign, others, floor: up.height, centre: [legs[chosen].u, legs[chosen].v]};
     return result;
   }
 

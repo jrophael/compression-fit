@@ -633,17 +633,109 @@ function start() {
     const length = tapeLength >= 15 && tapeLength <= 80 ? tapeLength : NaN;
     lidarStatus('Reading ' + files.map(f => f.name).join(', ') + ' (' + (files.reduce((n, f) => n + f.size, 0) / 1e6).toFixed(1) + ' MB)…');
     await new Promise(resolve => setTimeout(resolve, 30));
+    let upload;
     try {
-      const model = await CompressionModels.readModel(await Promise.all(files.map(async f => ({name: f.name, buffer: await f.arrayBuffer()}))));
-      const result = CompressionModels.measureModel(model, length);
-      state.scans[state.leg].push(result);
-      renderScans();
-      applyScans();
-      const d = result.diagnostics;
-      $('lidar-status').textContent += ' (Read ' + d.format + ' in ' + (d.units === 'mm' ? 'millimetres' : 'metres') + '. Length ' +
-        (result.lengthSource === 'scan' ? 'found from the scan' : 'from your tape value') + '.)';
+      const buffers = await Promise.all(files.map(async f => ({name: f.name, buffer: await f.arrayBuffer()})));
+      const model = await CompressionModels.readModel(buffers);
+      let result, pending = false;
+      try {
+        result = CompressionModels.measureModel(model, length);
+      } catch (error) {
+        if (Number.isFinite(length)) throw error;
+        // The length could not be found automatically: measure provisionally so the 3D view
+        // can be shown, and ask for the cuff point to be tapped.
+        result = CompressionModels.measureModel(model, 40);
+        pending = error.message;
+      }
+      upload = {model, buffers, frame: result.frame, scanIndex: null, leg: state.leg};
+      if (!pending) {
+        state.scans[state.leg].push(result);
+        upload.scanIndex = state.scans[state.leg].length - 1;
+        renderScans();
+        applyScans();
+        const d = result.diagnostics;
+        $('lidar-status').textContent += ' (Read ' + d.format + ' in ' + (d.units === 'mm' ? 'millimetres' : 'metres') + '. Length ' +
+          (result.lengthSource === 'scan' ? 'found from the scan: check the red ring on the 3D leg below' : 'from your tape value') + '.)';
+      } else {
+        lidarStatus(pending + ' Tap the cuff point on the 3D leg below to set the length.');
+      }
+      upload.length = pending ? null : result.length;
     } catch (error) {
       lidarStatus('This scan could not be measured. ' + error.message);
+      return;
+    }
+    lastUpload = upload;
+    await showViewer(upload, upload.length);
+  });
+
+  // ---------- 3D viewer: tap the cuff point to set floor-to-cuff length ----------
+  let lastUpload = null;
+  let pickedLength = null;
+
+  async function viewerReady() {
+    if (window.CompressionViewer) return true;
+    await new Promise(resolve => {
+      window.addEventListener('compression-viewer-ready', resolve, {once: true});
+      setTimeout(resolve, 5000);
+    });
+    return Boolean(window.CompressionViewer);
+  }
+
+  async function showViewer(upload, length) {
+    pickedLength = null;
+    $('use-length').hidden = true;
+    $('pick-readout').textContent = length ? 'Length ' + length.toFixed(1) + ' cm (red ring). Tap to change.' : 'Tap the cuff point.';
+    if (!(await viewerReady())) {
+      $('pick-readout').textContent = '';
+      lidarStatus($('lidar-status').textContent + ' The 3D view could not load; enter the Length by tape if needed.');
+      return;
+    }
+    $('viewer-wrap').hidden = false;
+    try {
+      window.compressionViewer = await CompressionViewer.show($('scan-viewer'), upload.buffers, upload.model, upload.frame, {
+        length,
+        onPick(height) {
+          pickedLength = Math.round(height * 10) / 10;
+          $('pick-readout').textContent = 'Cuff point ' + pickedLength.toFixed(1) + ' cm above the floor.';
+          $('use-length').hidden = false;
+        }
+      });
+    } catch (error) {
+      $('viewer-wrap').hidden = true;
+      lidarStatus($('lidar-status').textContent + ' The 3D view could not be shown (' + error.message + ').');
+    }
+  }
+
+  $('use-length').addEventListener('click', () => {
+    const upload = lastUpload;
+    if (!upload || pickedLength === null) return;
+    if (!(pickedLength >= 15 && pickedLength <= 80)) {
+      $('pick-readout').textContent = 'That point is ' + pickedLength.toFixed(1) + ' cm up. Tap two finger widths below the knee crease.';
+      return;
+    }
+    try {
+      const result = CompressionModels.measureModel(upload.model, pickedLength);
+      result.lengthSource = 'tapped cuff point';
+      const scans = state.scans[upload.leg];
+      if (upload.scanIndex === null) {
+        scans.push(result);
+        upload.scanIndex = scans.length - 1;
+      } else {
+        scans[upload.scanIndex] = result;
+      }
+      if (state.leg !== upload.leg) { state.leg = upload.leg; $('leg').value = upload.leg; }
+      // The length now comes from the tapped cuff point.
+      state.records[state.leg].length = pickedLength.toFixed(1);
+      state.sources[state.leg].length = 'scan';
+      updateRecord();
+      renderScans();
+      applyScans();
+      upload.length = pickedLength;
+      $('use-length').hidden = true;
+      $('pick-readout').textContent = 'Length set to ' + pickedLength.toFixed(1) + ' cm from the tapped cuff point.';
+      window.compressionViewer?.setMarkerHeight(pickedLength);
+    } catch (error) {
+      lidarStatus('This scan could not be measured with that length. ' + error.message);
     }
   });
 

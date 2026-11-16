@@ -10,6 +10,8 @@
   <script defer src="scan.js?v=__VERSION__"></script>
   <script defer src="models.js?v=__VERSION__"></script>
   <script defer src="fit.js?v=__VERSION__"></script>
+  <script type="importmap">{"imports": {"three": "./vendor/three/three.module.min.js"}}</script>
+  <script type="module" src="viewer.js?v=__VERSION__"></script>
 </head>
 <body>
 
@@ -93,7 +95,7 @@
             <ul>
               <li><strong>Stand, don’t sit.</strong> Barefoot, upright, weight on both feet, legs a little apart. A bent or seated leg is refused.</li>
               <li><strong>A helper holds the phone.</strong> You cannot scan all the way round your own leg.</li>
-              <li><strong>Bare the leg to the knee</strong> and use even, bright light.</li>
+              <li><strong>Bare the leg to above the knee</strong> (shorts rolled up) so the knee crease shows in the scan, and use even, bright light.</li>
               <li><strong>Go all the way round:</strong> front, sides, behind the calf and between the legs. A scan from one side comes out flat and is refused.</li>
               <li><strong>Scan from the floor to just above the knee, with the knees apart.</strong> The length is found from the narrowing just below the knee. If the knees touch, enter the Length by tape instead.</li>
               <li><strong>Move slowly</strong> at arm’s length, and keep some floor in view all round the foot.</li>
@@ -105,12 +107,13 @@
           <h3>Step by step with a free scanning app</h3>
           <ol class="steps">
             <li>Choose the leg under Check a stocking size. Leave Length blank to measure it from the scan, or enter it by tape (standing barefoot, floor to two finger widths below the knee crease).</li>
-            <li>The wearer stands barefoot on a clear floor, upright, legs a little apart, weight on both feet, leg bare to the knee.</li>
+            <li>The wearer stands barefoot on a clear floor, upright, legs a little apart, weight on both feet, leg bare to above the knee.</li>
             <li>The helper opens the scanning app and starts a Mesh (LiDAR) scan. Begin at the floor beside the foot.</li>
             <li>Walk slowly all the way around the leg at arm’s length, including behind the calf and between the legs, sweeping from the ankle to just above the knee.</li>
             <li>Finish and let the app process the scan. Rotate the model and check the leg is round from above. Crop to the one leg if the app allows, keeping the floor.</li>
             <li>Export the model as shown for your app below, and save it to Files.</li>
             <li>Refresh this page if needed, tap Upload the scan below, and choose the file.</li>
+            <li>The 3D leg appears with the length shown as a red ring. Turn it to the back of the knee. If the ring is not two finger widths below the crease, tap that point and then Use this length.</li>
             <li>Scan and upload the same leg a second time. The ankle and calf are entered once two scans agree within 1 cm.</li>
           </ol>
           <details class="app-guide" open>
@@ -130,6 +133,14 @@
             <input type="file" id="lidar-file" multiple>
           </label>
           <p id="lidar-status" class="secondary" role="status" aria-live="polite"></p>
+          <div id="viewer-wrap" hidden>
+            <p class="field-help">Drag to turn the leg, pinch or scroll to zoom. Faint rings mark every 10 cm and the red ring is the current length. Turn to the back of the knee and tap two finger widths below the crease to set the length.</p>
+            <div id="scan-viewer"></div>
+            <div class="actions">
+              <span id="pick-readout" class="pick-readout"></span>
+              <button type="button" class="primary" id="use-length" hidden>Use this length</button>
+            </div>
+          </div>
           <div id="lidar-scans"></div>
           <div class="actions">
             <button type="button" class="plain" id="lidar-reset">Clear scans for this leg</button>

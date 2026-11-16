@@ -7,6 +7,7 @@
   <meta name="robots" content="noindex">
   <title>Compression Fit</title>
   <link rel="stylesheet" href="fit.css">
+  <script defer src="scan.js"></script>
   <script defer src="fit.js"></script>
 </head>
 <body>
@@ -35,6 +36,9 @@
       </button>
       <button type="button" class="mode" data-mode="self" aria-pressed="false">
         <span><strong>Self-scan</strong><small>Prop up your phone</small></span>
+      </button>
+      <button type="button" class="mode" data-mode="lidar" aria-pressed="false">
+        <span><strong>LiDAR scan</strong><small>iPhone Pro app</small></span>
       </button>
     </nav>
 
@@ -75,6 +79,28 @@
             </div>
             <p id="frame-status" class="field-help" aria-live="polite"></p>
           </div>
+        </section>
+
+        <!-- LiDAR 3D scan (Compression Fit iPhone app, Pro models) -->
+        <section class="card" id="lidar-panel" hidden>
+          <h2>LiDAR scan</h2>
+          <p class="secondary">Scans the lower leg in 3D with the LiDAR sensor on iPhone Pro models, then measures the ankle and calf circumference and the floor-to-cuff length. Someone else holds the phone.</p>
+          <ol class="steps">
+            <li>Stand barefoot on a clear floor, legs apart, weight on both feet. Bare the leg to the knee.</li>
+            <li>Move the phone slowly over the floor beside the foot until the floor is found.</li>
+            <li>From behind, tap the cuff point: two finger widths below the knee crease.</li>
+            <li>Walk slowly all the way around the leg at arm’s length, sweeping from the ankle up to the knee.</li>
+            <li>Scan twice. The values are used only when both scans agree within 1 cm.</li>
+          </ol>
+          <p id="lidar-availability" class="field-help"></p>
+          <div class="actions">
+            <button type="button" class="primary" id="lidar-start" hidden>Start LiDAR scan</button>
+            <button type="button" class="outline" id="lidar-export" hidden>Export last scan</button>
+            <button type="button" class="plain" id="lidar-reset">Clear scans for this leg</button>
+          </div>
+          <label class="upload">Or load a scan file (.json) <input type="file" id="lidar-file" accept=".json,application/json"></label>
+          <p id="lidar-status" class="secondary" role="status" aria-live="polite"></p>
+          <div id="lidar-scans"></div>
         </section>
 
         <!-- Measurement entry and size result (all modes) -->

@@ -127,7 +127,7 @@ h2 {
 
 .modes {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -315,7 +315,53 @@ video {
 
 /* ---------- Sizing pilot ---------- */
 
-#video-panel { margin-bottom: 16px; }
+#video-panel,
+#lidar-panel { margin-bottom: 16px; }
+
+/* ---------- LiDAR scan ---------- */
+
+.steps {
+  margin: 12px 0 4px;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.steps li + li { margin-top: 4px; }
+
+.scan-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+  margin-top: 14px;
+}
+
+.scan-table th,
+.scan-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 4px;
+}
+
+.scan-profile {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 6px;
+  font-size: 10px;
+}
+
+.scan-profile polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.scan-profile circle { fill: var(--ink); }
+.scan-profile text { fill: var(--ink); }
+.scan-profile .axis { fill: var(--muted); }
+
+#lidar-status { font-weight: 650; color: var(--ink); }
 
 #annotation h3 { margin: 16px 0 3px; }
 
@@ -406,6 +452,10 @@ video {
 .print-sheet { display: none; }
 
 /* ---------- Responsive ---------- */
+
+@media (max-width: 860px) {
+  .modes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 @media (max-width: 700px) {
   .shell { padding-inline: 16px; }

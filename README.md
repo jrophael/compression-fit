@@ -21,6 +21,9 @@ Pushing to `main` runs `.github/workflows/pages.yml`, which checks the sizing lo
 - `dist/index.html` contains the tape and video screens, the fit form and the printable tape and calibration target.
 - `dist/fit.css` controls screen and print layout.
 - `dist/fit.js` contains the size matrix, matching logic, camera capture, frame annotation and measurement calculations.
+- `dist/scan.js` measures LiDAR scans from the iPhone app: leg axis, cross-section outlines, ankle and calf circumference, and length.
+- `ios/` is the iPhone app (WKWebView shell plus native ARKit LiDAR scanner). See `ios/README.md`.
+- `tests/scan.test.js` checks scan measurement against synthetic legs of known size. `tests/fixtures/` holds two sample scans for the browser.
 
 ## How the pilot works
 
@@ -29,6 +32,7 @@ Pushing to `main` runs `.github/workflows/pages.yml`, which checks the sizing lo
 - Assisted video uses a continuous front-to-side clip with the wearer stationary. Self-scan uses a propped phone with timed recording prompts while the wearer turns.
 - The operator selects and annotates a front and a side frame. The outer corners of the printed 100 × 150 mm target define a planar homography for each frame. The target should be upright and at the same depth as the leg centre. Use actual-size printing and verify the dimensions with a ruler.
 - The app estimates ankle and calf circumferences by modelling the two calibrated widths as the axes of an ellipse. It estimates floor-to-cuff length from the side frame. Video measurements within 1 cm of a chart cutoff prompt a tape check. That buffer is a pilot rule, not a measured accuracy bound.
+- **LiDAR scan** (iPhone 12 Pro or later Pro models, via the app in `ios/`) captures a 3D point cloud of the lower leg. `scan.js` fits a straight leg axis, cuts cross-sections perpendicular to it and measures each section's tape-equivalent circumference: the convex hull of a smooth outline fitted to the surface points. The ankle is the narrowest section 5–22 cm above the floor, the calf is the widest section above it, and the length is the height of the tapped cuff point. Values are entered only when two scans of the same leg agree within 1 cm. The pilot's accuracy target is ±1 cm against tape. On synthetic legs with realistic noise the error is under 0.4 cm, but real legs are not validated yet.
 - The app processes clips locally in the browser. It has no backend, media upload, analytics or persistent storage for measurements.
 
 ## Limits and next validation
@@ -52,10 +56,14 @@ Validate first on rigid forms of known dimensions and then with paired video and
 - **Self-scan timing.** The prompts allow about 3 s for the front hold (6–9 s) before the turn cue. Confirm this is long enough in testing.
 - **Print scaling.** A US Letter paper setting or "fit to page" printing shrinks the target and tape by about 6%. The ruler check in the instructions catches this. Consider adding a short checkbox or confirmation step after printing.
 - No favicon, so browsers log a harmless 404.
+- **Untested iPhone build.** The iPhone app has not been compiled yet. See `ios/README.md`.
 
 ## Quick checks
 
 ```sh
 node --check dist/fit.js
 node -e "const {fitStocking}=require('./dist/fit.js'); console.log(fitStocking({ankle:20,calf:43,length:36}))"
+node tests/scan.test.js
 ```
+
+To try the LiDAR flow in a browser, choose **LiDAR scan** and load `tests/fixtures/synthetic-left-scan-1.json`, then `-2.json`. The synthetic leg is ankle 22.0 cm, calf 40.4 cm and length 40.0 cm.

@@ -109,7 +109,7 @@ if (typeof document !== 'undefined') start();
 function start() {
   const $ = id => document.getElementById(id);
   const preview = $('preview');
-  const state = {mode:'tape', leg:'left', records:{left:{},right:{}}, sources:{left:{},right:{}}, views:{}};
+  const state = {mode:'tape', leg:'left', records:{left:{},right:{}}, sources:{left:{},right:{}}, scans:{left:[],right:[]}, views:{}};
   let stream, recorder, recordUrl, request = 0, videoKind, selectedView;
   const recordingCues = [];
   const prompts = [
@@ -202,14 +202,17 @@ function start() {
   function updateRecord() {
     for (const field of fields) {
       $(field).value = state.records[state.leg][field] ?? '';
-      $(field+'-source').textContent = state.sources[state.leg][field] === 'video' ? 'Video estimate' : 'Tape';
+      $(field+'-source').textContent = sourceLabels[state.sources[state.leg][field]] ?? 'Tape';
     }
     $('result').hidden = true;
   }
 
+  const sourceLabels = {tape:'Tape', video:'Video estimate', scan:'LiDAR scan'};
+  const isEstimate = source => source === 'video' || source === 'scan';
+
   function clearEstimates() {
     for (const field of fields) {
-      if (state.sources[state.leg][field] === 'video') {
+      if (isEstimate(state.sources[state.leg][field])) {
         delete state.records[state.leg][field];
         delete state.sources[state.leg][field];
       }
@@ -227,20 +230,25 @@ function start() {
       button.classList.toggle('active',active);
       button.setAttribute('aria-pressed',String(active));
     }
-    $('video-panel').hidden = mode === 'tape';
+    $('video-panel').hidden = mode !== 'assisted' && mode !== 'self';
+    $('lidar-panel').hidden = mode !== 'lidar';
+    if (mode === 'lidar') renderScans();
     $('video-title').textContent = mode === 'assisted' ? 'Assisted video' : 'Self-scan';
     $('mode-instructions').textContent = mode === 'assisted'
       ? 'Keep the wearer still. Walk the phone from the front to the side in one clip, pausing square-on at both views. Print two targets and place one upright facing each view at the same depth as the leg’s centre.'
       : 'Prop the phone upright. Put one target upright beside the leg, at the same depth as its centre. Record the front, then turn a quarter turn on the same floor mark and pause with the leg straight.';
     $('fit-explanation').textContent = mode === 'tape'
       ? 'Select a leg and enter its measurements in centimetres.'
-      : 'Video estimates appear here after you mark both views. You can replace any value with a tape measurement.';
+      : mode === 'lidar'
+        ? 'Scan results appear here once two scans of this leg agree within 1 cm. You can replace any value with a tape measurement.'
+        : 'Video estimates appear here after you mark both views. You can replace any value with a tape measurement.';
   }
   document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => changeMode(button.dataset.mode)));
   $('leg').addEventListener('change', () => {
     clearVideo();
     state.leg = $('leg').value;
     updateRecord();
+    renderScans();
   });
   const form = $('fit-form');
   for (const field of fields) {
@@ -255,28 +263,33 @@ function start() {
     event.preventDefault();
     state.records[state.leg] = {};
     state.sources[state.leg] = {};
+    state.scans[state.leg] = [];
     clearVideo();
     updateRecord();
+    renderScans();
   });
   form.addEventListener('submit', event => {
     event.preventDefault();
     const result = $('result');
     const values = Object.fromEntries(fields.map(field => [field,$(field).valueAsNumber]));
-    const videoFields = fields.filter(field => state.sources[state.leg][field] === 'video');
+    const videoFields = fields.filter(field => isEstimate(state.sources[state.leg][field]));
+    const scanned = fields.some(field => state.sources[state.leg][field] === 'scan');
     const fit = fitStocking(values, videoFields);
     const heading = document.createElement('h3');
     const note = document.createElement('p');
     const complete = fit.band && fit.cut && fit.length;
     if (fit.checks.length) {
       heading.textContent = 'Check ' + fit.checks.join(', ') + ' with tape';
-      note.textContent = 'The video estimate is within the pilot’s 1 cm buffer of a size cutoff. Replace that measurement above and check again.';
+      note.textContent = 'The ' + (scanned ? 'scan' : 'video') + ' estimate is within the pilot’s 1 cm buffer of a size cutoff. Replace that measurement above and check again.';
     } else if (!complete) {
       heading.textContent = 'Outside the pilot size chart';
       note.textContent = 'Check the measurements before trying a size. The pilot chart has no matching combination.';
     } else {
       heading.textContent = fit.band + ' ankle · ' + fit.cut + ' calf · ' + fit.length;
       note.textContent = videoFields.length
-        ? 'Experimental video estimate. Confirm with tape before using it to select a garment.'
+        ? (scanned
+          ? 'Experimental LiDAR estimate from two scans that agreed within 1 cm. Confirm with tape until the scan is validated.'
+          : 'Experimental video estimate. Confirm with tape before using it to select a garment.')
         : 'Matched to the provisional pilot chart. Use the actual stocking’s chart for a purchase.';
     }
     result.replaceChildren(heading,note);
@@ -458,6 +471,125 @@ function start() {
     clearEstimates();
     state.views[selectedView].points = [];
     reviewViews();
+  });
+
+  // ---------- LiDAR scan (iPhone app) ----------
+  const app = window.webkit?.messageHandlers?.compressionFit;
+  const inApp = Boolean(app && window.compressionFitApp?.lidar);
+  let lastScanJson = null;
+  $('lidar-start').hidden = !inApp;
+  $('lidar-export').hidden = true;
+  $('lidar-availability').textContent = inApp
+    ? 'Use the leg selected below. Keep the other leg apart from it.'
+    : 'Live scanning needs the Compression Fit iPhone app on an iPhone Pro (iPhone 12 Pro or later). In a browser you can load a scan file exported from the app.';
+
+  function lidarStatus(message) {
+    $('lidar-status').textContent = message;
+  }
+
+  function scanSvg(profile, scan) {
+    const points = profile.filter(p => p.circumference !== null);
+    if (points.length < 2) return '';
+    const w = 300, h = 120, pad = 22;
+    const hMax = Math.max(...profile.map(p => p.height));
+    const cMin = Math.min(...points.map(p => p.circumference)) - 2;
+    const cMax = Math.max(...points.map(p => p.circumference)) + 2;
+    const x = c => pad + (c - cMin) / (cMax - cMin) * (w - 2 * pad);
+    const y = height => h - pad / 2 - height / hMax * (h - pad);
+    const line = points.map(p => x(p.circumference).toFixed(1) + ',' + y(p.height).toFixed(1)).join(' ');
+    const marker = (c, height, label) => '<circle cx="'+x(c).toFixed(1)+'" cy="'+y(height).toFixed(1)+'" r="3.5"/>' +
+      '<text x="'+(x(c)+6).toFixed(1)+'" y="'+(y(height)+4).toFixed(1)+'">'+label+'</text>';
+    return '<svg class="scan-profile" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Circumference by height above the floor">' +
+      '<text class="axis" x="0" y="9">height ↑</text><text class="axis" x="'+(w/2)+'" y="'+(h-1)+'" text-anchor="middle">circumference →</text>' +
+      '<polyline points="'+line+'"/>' + marker(scan.ankle, scan.ankleHeight, 'ankle') + marker(scan.calf, scan.calfHeight, 'calf') +
+      '<text class="axis" x="'+pad+'" y="'+(h-1)+'">'+cMin.toFixed(0)+' cm</text><text class="axis" x="'+(w-pad)+'" y="'+(h-1)+'" text-anchor="end">'+cMax.toFixed(0)+' cm</text></svg>';
+  }
+
+  function renderScans() {
+    const scans = state.scans[state.leg];
+    const container = $('lidar-scans');
+    if (!scans.length) { container.replaceChildren(); return; }
+    const rowsHtml = scans.map((scan, i) =>
+      '<tr><th scope="row">Scan '+(i+1)+'</th><td>'+scan.ankle.toFixed(1)+'</td><td>'+scan.calf.toFixed(1)+'</td><td>'+scan.length.toFixed(1)+'</td></tr>').join('');
+    const latest = scans[scans.length - 1];
+    container.innerHTML = '<table class="scan-table"><thead><tr><th>'+(state.leg === 'left' ? 'Left' : 'Right')+' leg (cm)</th><th>Ankle</th><th>Calf</th><th>Length</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>' +
+      '<p class="field-help">Latest scan: ankle at '+latest.ankleHeight.toFixed(1)+' cm and calf at '+latest.calfHeight.toFixed(1)+' cm above the floor. Leg tilt '+latest.tilt.toFixed(0)+'°.</p>' +
+      scanSvg(latest.profile, latest);
+  }
+
+  function applyScans() {
+    const scans = state.scans[state.leg];
+    const latest = scans[scans.length - 1];
+    const warnings = latest.warnings.length ? ' ' + latest.warnings.join(' ') : '';
+    if (scans.length < 2) {
+      lidarStatus('Scan 1 measured. Scan the same leg again to confirm.' + warnings);
+      return;
+    }
+    const comparison = CompressionScan.compareScans(scans[scans.length - 2], latest);
+    if (!comparison.agree) {
+      const worst = Object.entries(comparison.differences).sort((a, b) => b[1] - a[1])[0];
+      lidarStatus('The last two scans differ by ' + worst[1].toFixed(1) + ' cm at the ' + worst[0] + '. Scan again, more slowly and fully around the leg.' + warnings);
+      return;
+    }
+    clearEstimates();
+    for (const field of fields) {
+      if (state.sources[state.leg][field] === 'tape' && state.records[state.leg][field]) continue;
+      state.records[state.leg][field] = comparison.mean[field].toFixed(1);
+      state.sources[state.leg][field] = 'scan';
+    }
+    updateRecord();
+    lidarStatus('The last two scans agree within 1 cm. Their average is entered in Check a stocking size.' + warnings);
+  }
+
+  function receiveScan(scan) {
+    try {
+      if (scan.leg === 'left' || scan.leg === 'right') {
+        if (scan.leg !== state.leg) {
+          state.leg = scan.leg;
+          $('leg').value = scan.leg;
+          updateRecord();
+        }
+      }
+      const result = CompressionScan.measureScan(scan);
+      state.scans[state.leg].push(result);
+      renderScans();
+      applyScans();
+    } catch (error) {
+      lidarStatus('This scan could not be measured. ' + error.message);
+    }
+  }
+
+  // Called by the iPhone app with the scan object.
+  window.receiveLidarScan = scan => {
+    lastScanJson = JSON.stringify(scan);
+    $('lidar-export').hidden = !inApp;
+    if (state.mode !== 'lidar') changeMode('lidar');
+    receiveScan(scan);
+  };
+  window.lidarScanCancelled = message => lidarStatus(message || 'Scan cancelled.');
+
+  $('lidar-start').addEventListener('click', () => {
+    lidarStatus('Opening the LiDAR scanner…');
+    app.postMessage({action:'scan', leg:state.leg});
+  });
+  $('lidar-export').addEventListener('click', () => {
+    if (lastScanJson) app.postMessage({action:'exportScan', json:lastScanJson});
+  });
+  $('lidar-reset').addEventListener('click', () => {
+    state.scans[state.leg] = [];
+    clearEstimates();
+    renderScans();
+    lidarStatus('');
+  });
+  $('lidar-file').addEventListener('change', async () => {
+    const file = $('lidar-file').files[0];
+    $('lidar-file').value = '';
+    if (!file) return;
+    try {
+      receiveScan(JSON.parse(await file.text()));
+    } catch {
+      lidarStatus('That file is not a Compression Fit scan.');
+    }
   });
 
   const rows = chart.map(row => '<tr><th scope="row">'+row.band+'</th><td>'+row.ankle.join('–')+'</td>'+

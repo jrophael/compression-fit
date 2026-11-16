@@ -639,7 +639,7 @@ function start() {
       state.records[state.leg].length = String(length);
       state.sources[state.leg].length = 'tape';
     }
-    lidarStatus('Reading the scan…');
+    lidarStatus('Reading ' + files.map(f => f.name).join(', ') + ' (' + (files.reduce((n, f) => n + f.size, 0) / 1e6).toFixed(1) + ' MB)…');
     await new Promise(resolve => setTimeout(resolve, 30));
     try {
       const model = await CompressionModels.readModel(await Promise.all(files.map(async f => ({name: f.name, buffer: await f.arrayBuffer()}))));

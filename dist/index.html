@@ -8,6 +8,7 @@
   <title>Compression Fit</title>
   <link rel="stylesheet" href="fit.css">
   <script defer src="scan.js"></script>
+  <script defer src="models.js"></script>
   <script defer src="fit.js"></script>
 </head>
 <body>
@@ -38,7 +39,7 @@
         <span><strong>Self-scan</strong><small>Prop up your phone</small></span>
       </button>
       <button type="button" class="mode" data-mode="lidar" aria-pressed="false">
-        <span><strong>LiDAR scan</strong><small>iPhone Pro app</small></span>
+        <span><strong>LiDAR scan</strong><small>iPhone Pro, no target</small></span>
       </button>
     </nav>
 
@@ -82,26 +83,58 @@
           </div>
         </section>
 
-        <!-- LiDAR 3D scan (Compression Fit iPhone app, Pro models) -->
+        <!-- LiDAR 3D scan: free scanning apps or the Compression Fit iPhone app -->
         <section class="card" id="lidar-panel" hidden>
           <h2>LiDAR scan</h2>
-          <p class="secondary">Scans the lower leg in 3D with the LiDAR sensor on iPhone Pro models, then measures the ankle and calf circumference and the floor-to-cuff length. Someone else holds the phone.</p>
+          <p class="secondary">Uses the LiDAR sensor on iPhone 12 Pro or later Pro models to scan the lower leg in 3D. The ankle and calf circumference are measured from the scan, so no printed target is needed. Someone else holds the phone.</p>
+
+          <h3>Step by step with a free scanning app</h3>
           <ol class="steps">
-            <li>Stand barefoot on a clear floor, legs apart, weight on both feet. Bare the leg to the knee.</li>
-            <li>Move the phone slowly over the floor beside the foot until the floor is found.</li>
-            <li>From behind, tap the cuff point: two finger widths below the knee crease.</li>
-            <li>Walk slowly all the way around the leg at arm’s length, sweeping from the ankle up to the knee.</li>
-            <li>Scan twice. The values are used only when both scans agree within 1 cm.</li>
+            <li>Measure the Length by tape: standing barefoot, from the floor to two finger widths below the knee crease. Enter it under Check a stocking size and choose the leg.</li>
+            <li>The wearer stands barefoot on a clear floor, legs apart, weight on both feet, with the leg bare to the knee.</li>
+            <li>Open the scanning app and start a LiDAR scan. Begin at the floor beside the foot, then walk slowly all the way around the leg at arm’s length, from the ankle up to the knee. Keep some floor in view all round.</li>
+            <li>Finish and let the app process the scan. If the app can crop, crop it to the one leg, keeping the floor.</li>
+            <li>Export the model as shown for your app below, and save it to Files.</li>
+            <li>Tap Upload the scan below and choose the file.</li>
+            <li>Scan and upload the same leg a second time. The ankle and calf are entered once two scans agree within 1 cm.</li>
           </ol>
-          <p id="lidar-availability" class="field-help"></p>
-          <div class="actions">
-            <button type="button" class="primary" id="lidar-start" hidden>Start LiDAR scan</button>
-            <button type="button" class="outline" id="lidar-export" hidden>Export last scan</button>
-            <button type="button" class="plain" id="lidar-reset">Clear scans for this leg</button>
-          </div>
-          <label class="upload">Or load a scan file (.json) <input type="file" id="lidar-file" accept=".json,application/json"></label>
+          <details class="app-guide">
+            <summary>3d Scanner App (free)</summary>
+            <p>Use a LiDAR mode. After processing, tap Share or Export and choose <strong>OBJ</strong> (GLB, STL and PLY also work).</p>
+          </details>
+          <details class="app-guide">
+            <summary>Scaniverse (free)</summary>
+            <p>Choose a <strong>Mesh</strong> scan, not a Splat. After processing, tap Share, then Export Model, and choose <strong>OBJ</strong> or <strong>GLB</strong>. Do not use USDZ.</p>
+          </details>
+          <details class="app-guide">
+            <summary>Polycam (free plan exports glTF only)</summary>
+            <p>Use LiDAR mode. Export as <strong>glTF</strong>. Upload the ZIP it makes, or select the .gltf and .bin files together. OBJ and other formats need a paid Polycam plan.</p>
+          </details>
+
+          <label class="upload">Upload the scan <small>OBJ, GLB, glTF, PLY, STL, XYZ or ZIP</small>
+            <input type="file" id="lidar-file" multiple accept=".obj,.glb,.gltf,.bin,.ply,.stl,.xyz,.pts,.txt,.zip,.json,application/json,model/*">
+          </label>
           <p id="lidar-status" class="secondary" role="status" aria-live="polite"></p>
           <div id="lidar-scans"></div>
+          <div class="actions">
+            <button type="button" class="plain" id="lidar-reset">Clear scans for this leg</button>
+          </div>
+
+          <details class="app-guide" id="lidar-app">
+            <summary>Compression Fit iPhone app</summary>
+            <p id="lidar-availability" class="field-help"></p>
+            <ol class="steps">
+              <li>Choose the leg below. Stand barefoot on a clear floor, legs apart, weight on both feet.</li>
+              <li>Tap Start LiDAR scan. Move the phone slowly over the floor beside the foot until the floor is found.</li>
+              <li>From behind, tap the cuff point: two finger widths below the knee crease. The app measures the length from this point.</li>
+              <li>Walk slowly all the way around the leg at arm’s length, sweeping from the ankle up to the knee, then tap Finish scan.</li>
+              <li>Scan twice. The values are used once both scans agree within 1 cm.</li>
+            </ol>
+            <div class="actions">
+              <button type="button" class="primary" id="lidar-start" hidden>Start LiDAR scan</button>
+              <button type="button" class="outline" id="lidar-export" hidden>Export last scan</button>
+            </div>
+          </details>
         </section>
 
         <!-- Measurement entry and size result (all modes) -->

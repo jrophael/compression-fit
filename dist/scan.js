@@ -395,6 +395,6 @@ function compareScans(a, b) {
   return {agree, differences, mean: {ankle: (a.ankle + b.ankle) / 2, calf: (a.calf + b.calf) / 2, length: (a.length + b.length) / 2}};
 }
 
-const CompressionScan = {measureScan, compareScans, decodeScan, encodeScanPoints, sectionCircumference, convexHullPerimeter, SCAN_AGREEMENT_CM, SCAN_FORMAT_VERSION, SCAN_UNITS_PER_METRE};
+const CompressionScan = {measureScan, compareScans, clusters2D, decodeScan, encodeScanPoints, sectionCircumference, convexHullPerimeter, SCAN_AGREEMENT_CM, SCAN_FORMAT_VERSION, SCAN_UNITS_PER_METRE};
 if (typeof module !== 'undefined') module.exports = CompressionScan;
 if (typeof window !== 'undefined') window.CompressionScan = CompressionScan;

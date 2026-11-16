@@ -513,7 +513,7 @@ function start() {
   $('lidar-export').hidden = true;
   $('lidar-availability').textContent = inApp
     ? 'Use the leg selected below. Keep the other leg apart from it.'
-    : 'Live scanning needs the Compression Fit iPhone app on an iPhone Pro (iPhone 12 Pro or later). In a browser you can load a scan file exported from the app.';
+    : 'This needs the Compression Fit iPhone app, which is in development. Scan files exported from it can be uploaded above.';
 
   function lidarStatus(message) {
     $('lidar-status').textContent = message;
@@ -613,14 +613,44 @@ function start() {
     renderScans();
     lidarStatus('');
   });
+  if (inApp) $('lidar-app').open = true;
+
   $('lidar-file').addEventListener('change', async () => {
-    const file = $('lidar-file').files[0];
+    const files = Array.from($('lidar-file').files);
     $('lidar-file').value = '';
-    if (!file) return;
+    if (!files.length) return;
+    // A Compression Fit scan file exported from the iPhone app.
+    if (files.length === 1 && /\.json$/i.test(files[0].name)) {
+      try {
+        receiveScan(JSON.parse(await files[0].text()));
+      } catch {
+        lidarStatus('That file is not a Compression Fit scan.');
+      }
+      return;
+    }
+    // A 3D model from a scanning app. The length comes from the tape value.
+    const length = $('length').valueAsNumber;
+    if (!(length >= 15 && length <= 80)) {
+      lidarStatus('Enter the Length by tape first (floor to two finger widths below the knee crease), then upload the scan.');
+      $('length').focus();
+      return;
+    }
+    if (state.sources[state.leg].length !== 'tape') {
+      state.records[state.leg].length = String(length);
+      state.sources[state.leg].length = 'tape';
+    }
+    lidarStatus('Reading the scan…');
+    await new Promise(resolve => setTimeout(resolve, 30));
     try {
-      receiveScan(JSON.parse(await file.text()));
-    } catch {
-      lidarStatus('That file is not a Compression Fit scan.');
+      const model = await CompressionModels.readModel(await Promise.all(files.map(async f => ({name: f.name, buffer: await f.arrayBuffer()}))));
+      const result = CompressionModels.measureModel(model, length);
+      state.scans[state.leg].push(result);
+      renderScans();
+      applyScans();
+      const d = result.diagnostics;
+      $('lidar-status').textContent += ' (Read ' + d.format + ' in ' + (d.units === 'mm' ? 'millimetres' : 'metres') + '.)';
+    } catch (error) {
+      lidarStatus('This scan could not be measured. ' + error.message);
     }
   });
 

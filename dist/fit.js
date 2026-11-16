@@ -655,7 +655,7 @@ function start() {
         applyScans();
         const d = result.diagnostics;
         $('lidar-status').textContent += ' (Read ' + d.format + ' in ' + (d.units === 'mm' ? 'millimetres' : 'metres') + '. Length ' +
-          (result.lengthSource === 'scan' ? 'found from the scan: check the red ring on the 3D leg below' : 'from your tape value') + '.)';
+          (result.lengthSource === 'scan' ? 'measured automatically from the scan, shown as the red ring on the 3D leg below' : 'from your tape value') + '.)';
       } else {
         lidarStatus(pending + ' Tap the cuff point on the 3D leg below to set the length.');
       }
@@ -671,6 +671,7 @@ function start() {
   // ---------- 3D viewer: tap the cuff point to set floor-to-cuff length ----------
   let lastUpload = null;
   let pickedLength = null;
+  let manualLength = false; // tapping is a fallback, used only when the automatic length fails or on request
 
   async function viewerReady() {
     if (window.CompressionViewer) return true;
@@ -683,8 +684,13 @@ function start() {
 
   async function showViewer(upload, length) {
     pickedLength = null;
+    manualLength = !length;
     $('use-length').hidden = true;
-    $('pick-readout').textContent = length ? 'Length ' + length.toFixed(1) + ' cm (red ring). Tap to change.' : 'Tap the cuff point.';
+    $('manual-length').hidden = manualLength;
+    $('viewer-help').textContent = manualLength
+      ? 'The length could not be found automatically. Turn to the back of the knee and tap two finger widths below the crease. Drag to turn, pinch or scroll to zoom.'
+      : 'The red ring is the cuff level found automatically from the scan, and the faint rings mark every 10 cm. Drag to turn the leg, pinch or scroll to zoom.';
+    $('pick-readout').textContent = length ? 'Length ' + length.toFixed(1) + ' cm, measured automatically.' : 'Tap the cuff point.';
     if (!(await viewerReady())) {
       $('pick-readout').textContent = '';
       lidarStatus($('lidar-status').textContent + ' The 3D view could not load; enter the Length by tape if needed.');
@@ -694,6 +700,7 @@ function start() {
     try {
       window.compressionViewer = await CompressionViewer.show($('scan-viewer'), upload.buffers, upload.model, upload.frame, {
         length,
+        canPick: () => manualLength,
         onPick(height) {
           pickedLength = Math.round(height * 10) / 10;
           $('pick-readout').textContent = 'Cuff point ' + pickedLength.toFixed(1) + ' cm above the floor.';
@@ -705,6 +712,13 @@ function start() {
       lidarStatus($('lidar-status').textContent + ' The 3D view could not be shown (' + error.message + ').');
     }
   }
+
+  $('manual-length').addEventListener('click', () => {
+    manualLength = true;
+    $('manual-length').hidden = true;
+    $('viewer-help').textContent = 'Turn to the back of the knee and tap two finger widths below the crease, then tap Use this length.';
+    $('pick-readout').textContent = 'Tap the cuff point.';
+  });
 
   $('use-length').addEventListener('click', () => {
     const upload = lastUpload;

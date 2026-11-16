@@ -174,6 +174,7 @@ async function show(container, files, model, frame, options = {}) {
   renderer.domElement.addEventListener('pointerdown', event => { down = {x: event.clientX, y: event.clientY, t: performance.now()}; });
   renderer.domElement.addEventListener('pointerup', event => {
     if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6 || performance.now() - down.t > 600) return;
+    if (options.canPick && !options.canPick()) return;
     const rect = renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);

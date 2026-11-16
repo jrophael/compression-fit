@@ -113,7 +113,7 @@
             <li>Finish and let the app process the scan. Rotate the model and check the leg is round from above. Crop to the one leg if the app allows, keeping the floor.</li>
             <li>Export the model as shown for your app below, and save it to Files.</li>
             <li>Refresh this page if needed, tap Upload the scan below, and choose the file.</li>
-            <li>The 3D leg appears with the length shown as a red ring. Turn it to the back of the knee. If the ring is not two finger widths below the crease, tap that point and then Use this length.</li>
+            <li>The length, ankle and calf are measured automatically. The 3D leg appears with the cuff level found from the scan shown as a red ring, so you can check it. Nothing needs to be tapped.</li>
             <li>Scan and upload the same leg a second time. The ankle and calf are entered once two scans agree within 1 cm.</li>
           </ol>
           <details class="app-guide" open>
@@ -134,11 +134,12 @@
           </label>
           <p id="lidar-status" class="secondary" role="status" aria-live="polite"></p>
           <div id="viewer-wrap" hidden>
-            <p class="field-help">Drag to turn the leg, pinch or scroll to zoom. Faint rings mark every 10 cm and the red ring is the current length. Turn to the back of the knee and tap two finger widths below the crease to set the length.</p>
+            <p class="field-help" id="viewer-help">The red ring is the cuff level found automatically from the scan, and the faint rings mark every 10 cm. Drag to turn the leg, pinch or scroll to zoom.</p>
             <div id="scan-viewer"></div>
             <div class="actions">
               <span id="pick-readout" class="pick-readout"></span>
               <button type="button" class="primary" id="use-length" hidden>Use this length</button>
+              <button type="button" class="plain" id="manual-length">Adjust length manually</button>
             </div>
           </div>
           <div id="lidar-scans"></div>

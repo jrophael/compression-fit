@@ -427,6 +427,17 @@ video {
   font-weight: 400;
 }
 
+.shoe-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 420px;
+  margin-top: 14px;
+}
+
+.shoe-fields .optional { color: var(--muted); font-weight: 400; }
+.foot-fit { font-weight: 600; }
+
 .leg-select {
   max-width: 150px;
   margin-top: 17px;

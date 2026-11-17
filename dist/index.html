@@ -202,6 +202,18 @@
               <label>Calf (cm) <input type="number" id="calf" min="15" max="100" step="any" inputmode="decimal" required placeholder="e.g. 42"><small id="calf-source">Tape</small></label>
               <label>Length (cm) <input type="number" id="length" min="15" max="80" step="any" inputmode="decimal" required placeholder="e.g. 39"><small id="length-source">Tape</small></label>
             </div>
+            <div class="shoe-fields">
+              <label>Shoe size <span class="optional">(optional)</span> <input type="number" id="shoe" min="1" max="60" step="0.5" inputmode="decimal" placeholder="e.g. 9"></label>
+              <label>Sizing <select id="shoe-system">
+                <option value="AUM">AU men</option>
+                <option value="AUW">AU women</option>
+                <option value="UK">UK</option>
+                <option value="EU">EU</option>
+                <option value="USM">US men</option>
+                <option value="USW">US women</option>
+              </select></label>
+            </div>
+            <p class="field-help">Your usual shoe size sizes the foot of the stocking. It is the same for both legs.</p>
             <div class="actions">
               <button class="primary" type="submit">Find stocking size</button>
               <button class="plain" type="reset">Clear this leg</button>
@@ -222,6 +234,8 @@
           <dd>Measure around the widest point.</dd>
           <dt>Length</dt>
           <dd>Stand barefoot with your foot flat. Measure from the floor to two finger widths below the crease behind the knee.</dd>
+          <dt>Shoe size</dt>
+          <dd>Your usual shoe size. No measuring needed.</dd>
         </dl>
         <div class="guide-footer">
           <button type="button" class="outline" data-print="tape">Print fitting tape</button>

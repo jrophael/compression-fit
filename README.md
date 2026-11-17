@@ -69,3 +69,7 @@ node tests/scan.test.js
 ```
 
 To try the LiDAR flow in a browser, choose **LiDAR scan** and load `tests/fixtures/synthetic-left-scan-1.json`, then `-2.json`. The synthetic leg is ankle 22.0 cm, calf 40.4 cm and length 40.0 cm. To test model upload, enter a Length of 40, then upload `synthetic-leg-scene.obj` and `synthetic-leg-scene-gltf.zip`.
+
+## Shoe size (foot sizing)
+
+An optional shoe size (AU men/women, UK, EU, US men/women) sizes the foot of the stocking. It is converted to EU via the standard last-length rules (last ≈ foot length + 1.5 cm; EU = 1.5 × last in cm; UK = 3 × last in inches − 25; US men = UK + 1; US and AU women = UK + 2) and matched to provisional foot sizes S 35–38, M 39–42, L 43–46, XL 47–50 (`footSizes` in `dist/fit.js`). Replace these with the chosen maker's chart. Tests: `node tests/fit.test.js`.

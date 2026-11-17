@@ -7,6 +7,34 @@ const chart = [
 ];
 const lengths = [['Short',30,37], ['Regular',37,43], ['Long',43,50]];
 const fields = ['ankle','calf','length'];
+
+// Shoe size → EU size, via the standard last-length rules (last ≈ foot length + 1.5 cm).
+// EU (Paris point) = 1.5 × last cm; UK = 3 × last inches − 25; US men = UK + 1; US/AU women = UK + 2; AU men = UK.
+const shoeSystems = {
+  EU: {label:'EU', toUK: eu => 3 * (eu / 1.5) / 2.54 - 25},
+  UK: {label:'UK', toUK: uk => uk},
+  AUM: {label:'AU men', toUK: au => au},
+  AUW: {label:'AU women', toUK: au => au - 2},
+  USM: {label:'US men', toUK: us => us - 1},
+  USW: {label:'US women', toUK: us => us - 2}
+};
+// Provisional pilot foot sizes (EU ranges); replace with the chosen maker's chart.
+const footSizes = [['S',35,39], ['M',39,43], ['L',43,47], ['XL',47,51]];
+
+function shoeToEU(size, system) {
+  const convert = shoeSystems[system];
+  if (!convert || !Number.isFinite(size)) return null;
+  const lastInches = (convert.toUK(size) + 25) / 3;
+  return 1.5 * lastInches * 2.54;
+}
+
+function footFit(size, system) {
+  const eu = shoeToEU(size, system);
+  if (eu === null) return null;
+  const rounded = Math.round(eu * 2) / 2;
+  const band = footSizes.find(([,low,high]) => inBand(rounded, low, high));
+  return {eu: rounded, footLength: eu / 1.5 - 1.5, size: band?.[0] ?? null, range: band ? band[1] + '–' + (band[2] - 1) : null};
+}
 const isNear = (value, limits) => limits.some(limit => Math.abs(value - limit) <= 1);
 const inBand = (value, low, high) => value >= low && value < high;
 
@@ -103,7 +131,7 @@ function circumference(width, depth) {
   return Math.PI*(a+b)*(1+3*h/(10+Math.sqrt(4-3*h)));
 }
 
-if (typeof module !== 'undefined') module.exports = {fitStocking, planeFromCorners, dimensions, circumference};
+if (typeof module !== 'undefined') module.exports = {fitStocking, shoeToEU, footFit, planeFromCorners, dimensions, circumference};
 if (typeof document !== 'undefined') start();
 
 function start() {
@@ -338,6 +366,7 @@ function start() {
       $('result').hidden = true;
     });
   }
+  for (const id of ['shoe','shoe-system']) $(id).addEventListener('input', () => { $('result').hidden = true; });
   form.addEventListener('reset', event => {
     event.preventDefault();
     state.records[state.leg] = {};
@@ -371,7 +400,17 @@ function start() {
           : 'Experimental video estimate. Confirm with tape before using it to select a garment.')
         : 'Matched to the provisional pilot chart. Use the actual stocking’s chart for a purchase.';
     }
-    result.replaceChildren(heading,note);
+    const parts = [heading, note];
+    const shoe = footFit($('shoe').valueAsNumber, $('shoe-system').value);
+    if (shoe) {
+      const foot = document.createElement('p');
+      foot.className = 'foot-fit';
+      foot.textContent = shoe.size
+        ? 'Foot: size ' + shoe.size + ' (EU ' + shoe.range + ') from shoe size EU ' + shoe.eu + ', foot about ' + shoe.footLength.toFixed(1) + ' cm long.'
+        : 'Shoe size EU ' + shoe.eu + ' is outside the pilot foot sizes (EU 35–50).';
+      parts.push(foot);
+    }
+    result.replaceChildren(...parts);
     result.hidden = false;
   });
 
@@ -809,7 +848,8 @@ function start() {
   const rows = chart.map(row => '<tr><th scope="row">'+row.band+'</th><td>'+row.ankle.join('–')+'</td>'+
     row.cuts.map(([,low,high]) => '<td>'+low+'–'+high+'</td>').join('')+'</tr>');
   $('chart').innerHTML = '<table><thead><tr><th>Ankle band</th><th>Ankle</th><th>Standard</th><th>Wide</th><th>Extra wide</th></tr></thead><tbody>'+
-    rows.join('')+'</tbody></table><p>Lengths (cm): short 30–&lt;37, regular 37–&lt;43, long 43–&lt;50. Each upper bound belongs to the next band where one exists.</p>';
+    rows.join('')+'</tbody></table><p>Lengths (cm): short 30–&lt;37, regular 37–&lt;43, long 43–&lt;50. Each upper bound belongs to the next band where one exists.</p>'+
+    '<p>Foot sizes by shoe size (EU): '+footSizes.map(([size,low,high]) => size+' '+low+'–'+(high-1)).join(', ')+'.</p>';
   for (const offset of [0,25]) {
     const strip = document.createElement('div');
     strip.className = 'ruler-strip';

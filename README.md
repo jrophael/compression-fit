@@ -24,7 +24,7 @@ Pushing to `main` runs `.github/workflows/pages.yml`, which checks the sizing lo
 - `dist/scan.js` measures LiDAR scans: leg axis, cross-section outlines, ankle and calf circumference, and length.
 - `dist/viewer.js` shows the uploaded scan in 3D with its colour texture (three.js, vendored under `dist/vendor/three`, MIT). The red ring marks the length; tapping the cuff point sets floor-to-cuff length.
 - `dist/models.js` reads 3D models exported by free scanning apps (OBJ, GLB, glTF or ZIP, PLY, STL, XYZ). It detects units, the up axis, the floor and the leg, then passes them to `scan.js`.
-- `ios/` is the iPhone app (WKWebView shell plus native ARKit LiDAR scanner). See `ios/README.md`.
+- `ios/` is the iPhone app (WKWebView shell, native ARKit LiDAR scanner and the AR tape tools). See `ios/README.md`.
 - `tests/scan.test.js` and `tests/models.test.js` check measurement against synthetic legs of known size, the second through every supported export format. `tests/fixtures/` holds sample scans and models for the browser.
 
 ## How the pilot works
@@ -36,6 +36,23 @@ Pushing to `main` runs `.github/workflows/pages.yml`, which checks the sizing lo
 - The app estimates ankle and calf circumferences by modelling the two calibrated widths as the axes of an ellipse. It estimates floor-to-cuff length from the side frame. Video measurements within 1 cm of a chart cutoff prompt a tape check. That buffer is a pilot rule, not a measured accuracy bound.
 - **LiDAR scan** works in two ways. The first, which works now, uses a scanning app: Scaniverse (free), Polycam (free plan exports glTF only) or 3d Scanner App (free trial, then subscription) on an iPhone 12 Pro or later Pro model. Upload the exported model. The length is found from the scan (the narrowing just below the knee, so scan to just above the knee with the knees apart), or taken from a tape value if one is entered. The second is the Compression Fit iPhone app in `ios/`, which also captures the cuff point. Either way the scan is a 3D point cloud of the lower leg. `scan.js` fits a straight leg axis, cuts cross-sections perpendicular to it and measures each section's tape-equivalent circumference: the convex hull of a smooth outline fitted to the surface points. The ankle is the narrowest section 5–22 cm above the floor, the calf is the widest section above it, the below-knee (top band) circumference is the mean of the sections in the 2.5 cm under the cuff level, and the length is the height of the tapped cuff point (app) or the tape length (upload). Values are entered only when two scans of the same leg agree within 1 cm. The pilot's accuracy target is ±1 cm against tape. On synthetic legs with realistic noise the error is under 0.4 cm, but real legs are not validated yet.
 - The app processes clips locally in the browser. It has no backend, media upload, analytics or persistent storage for measurements.
+
+## Market setting and AR tape
+
+**Buying in** (Australia, or Ireland, UK or EU) sets which methods are offered. It defaults from the device time zone (`Australia/*` → Australia) and can be forced with `?market=au` or `?market=ie`. The rules are in `markets` in `fit.js` and tested by `tests/market.test.js`.
+
+- **Australia:** Measure with tape and AR tape only. Ankle and calf come from a physical tape, typed in or placed with the AR tape guide. Camera, scan and AR results may fill the length only (`allowedFields`). The video and LiDAR modes are hidden, scan uploads and app scans are refused, and the iPhone app refuses the AR girth tape when `market` is `au`. Switching to Australia clears any camera- or scan-derived ankle and calf values.
+- **Ireland, UK or EU:** every method, including the AR girth tape.
+
+The reason is patent clearance: in Australia, ready-made garment selection from image-derived circumferences is claimed by a granted patent (see the freedom-to-operate notes). Do not loosen the Australian rules without a patent attorney's sign-off.
+
+**AR tape** mode (iPhone app, LiDAR Pro models) offers three tools:
+
+1. **AR tape guide:** finds the floor, the operator taps the cuff point and a virtual vertical tape shows the length; then for the ankle and calf the operator taps the measuring point, a ring shows where to wrap a real tape, and taps on the tape at the front and side check it is within 1 cm of the ring and level within 1 cm. The tape readings are typed in. Fields: ankle and calf labelled *Tape (AR-guided)*, length *AR length ruler*.
+2. **AR length ruler:** the first part only. Fills the length.
+3. **AR girth tape** (not in Australia): the LiDAR scanner with two virtual tapes at the ankle and calf that turn green sector by sector as each side is captured. Results go through the same two-scan agreement as LiDAR scan mode.
+
+The page calls the app with `{action: 'arTape', tool, leg, market}` and receives `window.receiveArTape(result)` (`{tool: 'guide'|'length', leg, ankle?, calf?, length, guideHeights?, placementChecks?}` or `{tool: 'girth', scan}`) or `window.arTapeCancelled(message)`. The AR length is treated as an estimate, so lengths within 1 cm of a cutoff prompt a tape check.
 
 ## Limits and next validation
 

@@ -27,12 +27,22 @@
     <section class="intro">
       <h1>Find your stocking size.</h1>
       <p>Choose a method to check the ankle band, calf cut and length for a knee-high stocking.</p>
+      <label class="market-select">Buying in
+        <select id="market">
+          <option value="au">Australia</option>
+          <option value="ie">Ireland, UK or EU</option>
+        </select>
+      </label>
+      <p class="field-help" id="market-note"></p>
     </section>
 
     <!-- Fitting method selector -->
     <nav class="modes" aria-label="Fitting method">
       <button type="button" class="mode active" data-mode="tape" aria-pressed="true">
         <span><strong>Measure with tape</strong><small>Enter three measurements</small></span>
+      </button>
+      <button type="button" class="mode" data-mode="ar" aria-pressed="false">
+        <span><strong>AR tape</strong><small>iPhone app guides the tape</small></span>
       </button>
       <button type="button" class="mode" data-mode="assisted" aria-pressed="false">
         <span><strong>Assisted video</strong><small>Someone holds the phone</small></span>
@@ -176,6 +186,34 @@
               <button type="button" class="outline" id="lidar-export" hidden>Export last scan</button>
             </div>
           </details>
+        </section>
+
+        <!-- AR tape tools (Compression Fit iPhone app, LiDAR models) -->
+        <section class="card" id="ar-panel" hidden>
+          <h2>AR tape</h2>
+          <p class="secondary">Augmented-reality tools in the Compression Fit iPhone app. They need the LiDAR sensor of an iPhone 12 Pro or a later Pro model. Stand barefoot on a clear floor, legs a little apart, leg bare to above the knee. A helper holding the phone makes it easier.</p>
+          <p id="ar-availability" class="field-help"></p>
+
+          <div class="ar-tools">
+            <article class="ar-tool">
+              <h3>AR tape guide</h3>
+              <p>Rings on the screen show exactly where to wrap a real tape: the narrowest point above the ankle bone and the widest calf. The app checks the tape is at the right height and level, then you type in what the tape reads. It also measures the length.</p>
+              <button type="button" class="primary" data-ar="guide">Start AR tape guide</button>
+            </article>
+            <article class="ar-tool">
+              <h3>AR length ruler</h3>
+              <p>The app finds the floor. Tap two finger widths below the knee crease, and a virtual tape shows the floor-to-cuff length. Measure the ankle and calf with a tape.</p>
+              <button type="button" class="outline" data-ar="length">Start AR length ruler</button>
+            </article>
+            <article class="ar-tool" id="ar-girth-tool">
+              <h3>AR girth tape</h3>
+              <p>Tap the cuff point, then walk slowly around the leg. Virtual tapes at the ankle and calf turn green as each side is captured, and the ankle, calf and length are measured from the scan. Scan twice: values are used once two scans agree within 1 cm.</p>
+              <button type="button" class="outline" data-ar="girth">Start AR girth tape</button>
+            </article>
+          </div>
+          <p id="ar-market-note" class="field-help"></p>
+          <p id="ar-status" class="secondary" role="status" aria-live="polite"></p>
+          <div id="ar-scans"></div>
         </section>
 
         <!-- Measurement entry and size result (all modes) -->

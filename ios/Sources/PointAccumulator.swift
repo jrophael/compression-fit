@@ -112,29 +112,47 @@ final class PointAccumulator {
         }
     }
 
-    /// Share of 10° sectors around the leg that contain points, at the ankle and calf.
-    func coverage() -> (ankle: Double, calf: Double) {
+    /// Which 10° sectors around the leg contain points in one height band.
+    struct BandCoverage {
+        /// Sector i covers atan2(z, x) angles from -π + i·10° (offsets from `centre`).
+        var sectors: [Bool]
+        /// Leg centre in the band, relative to `origin` (x, z).
+        var centre: SIMD2<Float>
+        /// Height of the band's middle above the floor, metres.
+        var height: Float
+        var fraction: Double { Double(sectors.filter { $0 }.count) / Double(max(1, sectors.count)) }
+    }
+
+    /// Ankle band 6–16 cm and calf band 20 cm to 4 cm below the cuff, as used by `coverage()`.
+    func bandCoverages() -> (ankle: BandCoverage, calf: BandCoverage) {
         let points = voxels.values.map { SIMD3<Float>($0.x, $0.y, $0.z) / $0.w }
-        func bandCoverage(_ low: Float, _ high: Float) -> Double {
+        func bandCoverage(_ low: Float, _ high: Float) -> BandCoverage {
+            var result = BandCoverage(sectors: [Bool](repeating: false, count: 36), centre: .zero, height: (low + high) / 2)
             let band = points.filter { $0.y >= low && $0.y <= high }
-            guard band.count > 50 else { return 0 }
+            guard band.count > 50 else { return result }
             // Leg centre: points near the cuff point, then near their centroid.
             var centre = SIMD2<Float>(0, 0)
             for radius: Float in [0.14, 0.11] {
                 let near = band.filter { simd_length(SIMD2($0.x, $0.z) - centre) < radius }
-                guard !near.isEmpty else { return 0 }
+                guard !near.isEmpty else { return result }
                 centre = near.reduce(SIMD2<Float>(0, 0)) { $0 + SIMD2($1.x, $1.z) } / Float(near.count)
             }
-            var sectors = [Bool](repeating: false, count: 36)
+            result.centre = centre
             for p in band {
                 let offset = SIMD2(p.x, p.z) - centre
                 guard simd_length(offset) < 0.12 else { continue }
                 let angle = atan2(offset.y, offset.x) + .pi
-                sectors[min(35, Int(angle / (2 * .pi) * 36))] = true
+                result.sectors[min(35, Int(angle / (2 * .pi) * 36))] = true
             }
-            return Double(sectors.filter { $0 }.count) / 36
+            return result
         }
         return (bandCoverage(0.06, 0.16), bandCoverage(0.20, max(0.21, cuffHeight - 0.04)))
+    }
+
+    /// Share of 10° sectors around the leg that contain points, at the ankle and calf.
+    func coverage() -> (ankle: Double, calf: Double) {
+        let bands = bandCoverages()
+        return (bands.ankle.fraction, bands.calf.fraction)
     }
 
     /// JSON scan object for the web app (`scan.js`, format version 1).

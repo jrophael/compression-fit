@@ -2,10 +2,13 @@ import ARKit
 import SceneKit
 import UIKit
 
-/// Full-screen LiDAR scan of one lower leg.
+/// AR girth tape: full-screen LiDAR scan of one lower leg.
 ///
 /// Steps: find the floor → tap the cuff point → walk around the leg → finish.
-/// Produces a JSON scan object (see PointAccumulator.exportJSON) for the web app.
+/// While scanning, two virtual tapes (rings of 36 segments) at the ankle and calf turn green
+/// sector by sector as each side of the leg is captured.
+/// Produces a JSON scan object (see PointAccumulator.exportJSON) for the web app, which
+/// measures the circumferences. Not offered in Australia (see WebViewController).
 final class ScanViewController: UIViewController, ARSessionDelegate {
     var onComplete: ((String) -> Void)?
     var onCancel: ((String) -> Void)?
@@ -36,6 +39,8 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
     private var coverage: (ankle: Double, calf: Double) = (0, 0)
     private var pointCount = 0
     private var notice: String?
+    private var ankleRing: SCNNode?
+    private var calfRing: SCNNode?
 
     init(leg: String) {
         self.leg = leg
@@ -60,13 +65,7 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        let configuration = ARWorldTrackingConfiguration()
-        configuration.planeDetection = [.horizontal]
-        if ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) {
-            configuration.frameSemantics.insert(.smoothedSceneDepth)
-        }
-        configuration.frameSemantics.insert(.sceneDepth)
-        sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
+        sceneView.session.run(LiDAR.configuration(), options: [.resetTracking, .removeExistingAnchors])
         UIApplication.shared.isIdleTimerDisabled = true
     }
 
@@ -157,15 +156,15 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
             instructionLabel.text = "Stand behind the \(legName) leg. Tap the skin two finger widths below the knee crease."
             buttonTitle = "Tap the cuff point"
         case .readyToScan:
-            titleLabel.text = "3. Scan the \(legName) leg"
+            titleLabel.text = "3. AR girth tape: \(legName) leg"
             let height = cuffHeightCentimetres().map { String(format: "%.1f", $0) } ?? "–"
-            instructionLabel.text = "Cuff point is \(height) cm above the floor. Tap again to move it. Then start, and walk slowly all the way around the leg at arm’s length, sweeping from the ankle to the knee."
+            instructionLabel.text = "Cuff point is \(height) cm above the floor. Tap again to move it. Then start, and walk slowly all the way around the leg at arm’s length, sweeping from the ankle to the knee. The virtual tapes at the ankle and calf turn green as each side is captured."
             buttonTitle = "Start scan"
             buttonEnabled = true
         case .scanning:
-            titleLabel.text = "Scanning the \(legName) leg"
+            titleLabel.text = "AR girth tape: \(legName) leg"
             instructionLabel.text = trackingNormal
-                ? "Keep walking slowly around the leg. Cover the ankle and the calf from every side, including between the legs."
+                ? "Keep walking slowly around the leg until both virtual tapes are green all the way round, including between the legs."
                 : "Tracking is limited. Move more slowly and keep the leg and floor in view."
             progress = String(format: "Ankle %ld%%  ·  Calf %ld%%  ·  %ld points",
                               Int(coverage.ankle * 100), Int(coverage.calf * 100), pointCount)
@@ -206,6 +205,7 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
                                            cuffHeight: cuffPoint.y - floorY)
             coverage = (0, 0)
             pointCount = 0
+            placeCoverageRings(origin: SIMD3<Float>(cuffPoint.x, floorY, cuffPoint.z), cuffHeight: cuffPoint.y - floorY)
             stage = .scanning
         case .scanning:
             finish()
@@ -252,33 +252,33 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
         stage = .readyToScan
     }
 
-    /// World point on the surface under a screen point, from the median of nearby LiDAR depths.
     private func surfacePoint(at viewPoint: CGPoint, frame: ARFrame) -> SIMD3<Float>? {
-        guard let depthData = frame.smoothedSceneDepth ?? frame.sceneDepth,
-              let confidenceMap = depthData.confidenceMap,
-              let sample = DepthSample(depthMap: depthData.depthMap, confidenceMap: confidenceMap, camera: frame.camera)
-        else { return nil }
-        let size = sceneView.bounds.size
-        guard size.width > 0, size.height > 0 else { return nil }
-        let orientation = view.window?.windowScene?.interfaceOrientation ?? .portrait
-        // displayTransform maps normalised image coordinates to normalised view coordinates.
-        let toImage = frame.displayTransform(for: orientation, viewportSize: size).inverted()
-        let normalised = CGPoint(x: viewPoint.x / size.width, y: viewPoint.y / size.height).applying(toImage)
-        let column = Int(normalised.x * CGFloat(sample.width))
-        let row = Int(normalised.y * CGFloat(sample.height))
-        guard (2..<(sample.width - 2)).contains(column), (2..<(sample.height - 2)).contains(row) else { return nil }
-        var depths: [Float] = []
-        for r in (row - 2)...(row + 2) {
-            for c in (column - 2)...(column + 2) {
-                let index = r * sample.width + c
-                if sample.confidence[index] >= 1 && sample.depth[index] > 0.1 {
-                    depths.append(sample.depth[index])
-                }
+        LiDAR.surfacePoint(at: viewPoint, in: sceneView, frame: frame)
+    }
+
+    /// Virtual tapes at the ankle and calf band heights; repositioned as the leg centre is found.
+    private func placeCoverageRings(origin: SIMD3<Float>, cuffHeight: Float) {
+        ankleRing?.removeFromParentNode()
+        calfRing?.removeFromParentNode()
+        let ankle = ARDrawing.segmentedRing(radius: 0.05)
+        let calf = ARDrawing.segmentedRing(radius: 0.07)
+        ankle.simdWorldPosition = origin + SIMD3<Float>(0, 0.11, 0)
+        calf.simdWorldPosition = origin + SIMD3<Float>(0, (0.20 + max(0.21, cuffHeight - 0.04)) / 2, 0)
+        sceneView.scene.rootNode.addChildNode(ankle)
+        sceneView.scene.rootNode.addChildNode(calf)
+        ankleRing = ankle
+        calfRing = calf
+    }
+
+    private func updateCoverageRings(_ bands: (ankle: PointAccumulator.BandCoverage, calf: PointAccumulator.BandCoverage),
+                                     origin: SIMD3<Float>) {
+        for (ring, band) in [(ankleRing, bands.ankle), (calfRing, bands.calf)] {
+            guard let ring else { continue }
+            if band.centre != .zero {
+                ring.simdWorldPosition = origin + SIMD3<Float>(band.centre.x, band.height, band.centre.y)
             }
+            ARDrawing.colourSegments(of: ring, covered: band.sectors)
         }
-        guard depths.count >= 5 else { return nil }
-        depths.sort()
-        return sample.unproject(column: Float(column) + 0.5, row: Float(row) + 0.5, depth: depths[depths.count / 2])
     }
 
     private func placeCuffMarker(at point: SIMD3<Float>) {
@@ -307,13 +307,16 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
         processingQueue.async { [weak self] in
             accumulator.add(sample)
             let count = accumulator.pointCount
-            let newCoverage = measureCoverage ? accumulator.coverage() : nil
+            let bands = measureCoverage ? accumulator.bandCoverages() : nil
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.processing = false
                 guard self.stage == .scanning else { return }
                 self.pointCount = count
-                if let newCoverage { self.coverage = newCoverage }
+                if let bands {
+                    self.coverage = (bands.ankle.fraction, bands.calf.fraction)
+                    self.updateCoverageRings(bands, origin: accumulator.origin)
+                }
                 self.updateUI()
             }
         }

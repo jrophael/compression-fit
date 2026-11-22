@@ -1,8 +1,8 @@
-# Compression Fit iPhone app (LiDAR scan)
+# Compression Fit iPhone app (LiDAR scan and AR tape)
 
-A small iPhone app that shows the Compression Fit web app and adds a native LiDAR scan of the lower leg. The scan is a cloud of surface points, and it goes straight into the web page. `dist/scan.js` then measures ankle and calf circumference and floor-to-cuff length. The measurement maths is in the web app, so it is covered by `tests/scan.test.js` and can change without an app release.
+A small iPhone app that shows the Compression Fit web app and adds a native LiDAR scan of the lower leg and three AR tape tools (guide, length ruler, girth tape). The scan is a cloud of surface points, and it goes straight into the web page. `dist/scan.js` then measures ankle and calf circumference and floor-to-cuff length. The measurement maths is in the web app, so it is covered by `tests/scan.test.js` and can change without an app release.
 
-**Status:** this code was written without access to Xcode or a device, so it has not been compiled or run yet. Expect a short round of build fixes. The ARKit depth handling follows Apple's "Displaying a point cloud using scene depth" sample conventions.
+**Status:** this code was written without access to Xcode or a device, so it has not been compiled or run yet. This includes the AR tape tools. Expect a short round of build fixes. The ARKit depth handling follows Apple's "Displaying a point cloud using scene depth" sample conventions.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ open CompressionFit.xcodeproj
 
 In Xcode, select the CompressionFit target. Under **Signing & Capabilities**, choose your team, and change the bundle ID if needed. Then run on a connected LiDAR iPhone.
 
-Without XcodeGen: create a new iOS App project in Xcode (SwiftUI, Swift) named CompressionFit. Delete its generated `ContentView.swift` and app file, and add the four files in `Sources/`. Add the `NSCameraUsageDescription` key and the `arkit` required device capability to the Info settings.
+Without XcodeGen: create a new iOS App project in Xcode (SwiftUI, Swift) named CompressionFit. Delete its generated `ContentView.swift` and app file, and add the six Swift files in `Sources/`. Add the `NSCameraUsageDescription` key and the `arkit` required device capability to the Info settings.
 
 ## How it works
 
@@ -36,6 +36,21 @@ Without XcodeGen: create a new iOS App project in Xcode (SwiftUI, Swift) named C
 5. The web app measures the scan. It fills the fields only when **two scans of the same leg agree within 1 cm** on ankle, calf and length, and then uses their average.
 
 **Export last scan** shares the scan file for validation records. Exported files can be loaded in any browser with **Or load a scan file**.
+
+## AR tape tools
+
+The page's **AR tape** mode posts `{action: 'arTape', tool, leg, market}`.
+
+- `ARSupport.swift`: shared LiDAR tap-to-surface point, floor finder, the bottom panel, and SceneKit drawing (rings, segmented coverage rings, the vertical centimetre tape, labels). The guides are drawn without depth testing so they stay visible through the leg.
+- `ARTapeViewController.swift`, tools `guide` and `length`:
+  1. Floor found as for the scanner. The operator taps the cuff point (15–80 cm up); a vertical virtual tape with centimetre ticks runs from the floor to it, and the length is shown.
+  2. `length` returns `{tool: 'length', leg, length}`.
+  3. `guide` continues: for the ankle (4–25 cm up) and the calf (15 cm to 2 cm below the cuff), the operator taps the front of the leg at the measuring point and an amber ring (4 or 6 cm radius, centred behind the tapped skin, away from the camera) shows where the tape goes. After wrapping a real tape, the operator taps the middle of the tape at the front (must be within 1 cm of the ring height) and at the side (within 1 cm of the front: level). The ring turns green and the tape reading is typed in (ankle 10–65 cm, calf 15–100 cm and more than the ankle).
+  4. Returns `{tool: 'guide', leg, ankle, calf, length, guideHeights, placementChecks}`. Heights and errors are in centimetres.
+  The camera and LiDAR only locate the floor, measure heights and draw the guides. They never measure a circumference, so this tool is the Australian route.
+- **AR girth tape** (`tool: 'girth'`) is `ScanViewController`, now drawing two segmented virtual tapes at the ankle and calf band heights. Each 10° segment turns green when that sector has points (`PointAccumulator.bandCoverages()`), and the rings move to the leg centre as it is found. The scan returns to `window.receiveArTape({tool: 'girth', scan})`. `WebViewController` refuses it when `market` is `au`, as does the page.
+
+Test on a device: check that the rings sit on the skin at the expected heights, that a tape placed 2 cm off the ring is rejected, and that the vertical tape's length matches a tape measure within 1 cm.
 
 ## Privacy
 

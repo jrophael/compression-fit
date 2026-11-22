@@ -2,8 +2,10 @@ import ARKit
 import UIKit
 import WebKit
 
-/// Hosts the Compression Fit web app and bridges three actions from the page:
+/// Hosts the Compression Fit web app and bridges these actions from the page:
 /// - `scan`: open the native LiDAR scanner and return the scan to `window.receiveLidarScan`.
+/// - `arTape`: open an AR tape tool (`tool`: `guide`, `length` or `girth`) and return the result
+///   to `window.receiveArTape`. `girth` is refused when the page's `market` is `au`.
 /// - `exportScan`: share the last scan file (for validation records).
 /// - `print`: print the page (the web app's printable target and tape).
 final class WebViewController: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNavigationDelegate {
@@ -19,7 +21,7 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKUIDel
 
         let lidarAvailable = ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
         let bootstrap = """
-        window.compressionFitApp = {lidar: \(lidarAvailable ? "true" : "false"), version: 1};
+        window.compressionFitApp = {lidar: \(lidarAvailable ? "true" : "false"), ar: \(lidarAvailable ? "true" : "false"), version: 2};
         window.print = function () { window.webkit.messageHandlers.compressionFit.postMessage({action: 'print'}); };
         """
         configuration.userContentController.addUserScript(
@@ -46,6 +48,9 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKUIDel
         case "scan":
             let leg = (body["leg"] as? String) == "right" ? "right" : "left"
             startScan(leg: leg)
+        case "arTape":
+            let leg = (body["leg"] as? String) == "right" ? "right" : "left"
+            startArTape(tool: body["tool"] as? String ?? "", leg: leg, market: body["market"] as? String ?? "au")
         case "exportScan":
             if let json = body["json"] as? String { exportScan(json) }
         case "print":
@@ -55,27 +60,79 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKUIDel
         }
     }
 
+    private var hasLiDAR: Bool { ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) }
+
     private func startScan(leg: String) {
-        guard ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) else {
+        guard hasLiDAR else {
             notifyCancelled("This iPhone has no LiDAR sensor. LiDAR scanning needs an iPhone 12 Pro or later Pro model.")
             return
         }
+        presentScanner(leg: leg) { [weak self] json in
+            self?.webView.evaluateJavaScript("window.receiveLidarScan(\(json));")
+        } cancelled: { [weak self] message in
+            self?.notifyCancelled(message)
+        }
+    }
+
+    private func presentScanner(leg: String, completed: @escaping (String) -> Void, cancelled: @escaping (String) -> Void) {
         let scanner = ScanViewController(leg: leg)
         scanner.modalPresentationStyle = .fullScreen
-        scanner.onComplete = { [weak self, weak scanner] json in
+        scanner.onComplete = { [weak scanner] json in
             scanner?.dismiss(animated: true)
-            self?.webView.evaluateJavaScript("window.receiveLidarScan(\(json));")
+            completed(json)
         }
-        scanner.onCancel = { [weak self, weak scanner] message in
+        scanner.onCancel = { [weak scanner] message in
             scanner?.dismiss(animated: true)
-            self?.notifyCancelled(message)
+            cancelled(message)
         }
         present(scanner, animated: true)
     }
 
+    /// AR tape tools. In Australia the girth tape is refused here as well as hidden in the page:
+    /// ankle and calf circumferences there come from a physical tape only.
+    private func startArTape(tool: String, leg: String, market: String) {
+        guard hasLiDAR else {
+            notifyArCancelled("The AR tape needs the LiDAR sensor of an iPhone 12 Pro or later Pro model. Use Measure with tape instead.")
+            return
+        }
+        switch tool {
+        case "girth":
+            guard market != "au" else {
+                notifyArCancelled("The AR girth tape is not available in Australia. Use the AR tape guide with a real tape.")
+                return
+            }
+            presentScanner(leg: leg) { [weak self] json in
+                self?.webView.evaluateJavaScript("window.receiveArTape({tool: 'girth', scan: \(json)});")
+            } cancelled: { [weak self] message in
+                self?.notifyArCancelled(message)
+            }
+        case "guide", "length":
+            let controller = ARTapeViewController(tool: tool == "guide" ? .guide : .length, leg: leg)
+            controller.modalPresentationStyle = .fullScreen
+            controller.onComplete = { [weak self, weak controller] json in
+                controller?.dismiss(animated: true)
+                self?.webView.evaluateJavaScript("window.receiveArTape(\(json));")
+            }
+            controller.onCancel = { [weak self, weak controller] message in
+                controller?.dismiss(animated: true)
+                self?.notifyArCancelled(message)
+            }
+            present(controller, animated: true)
+        default:
+            notifyArCancelled("This AR tool is not available in this version of the app.")
+        }
+    }
+
+    private func jsString(_ message: String) -> String {
+        (try? JSONEncoder().encode(message)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+    }
+
     private func notifyCancelled(_ message: String) {
-        let literal = (try? JSONEncoder().encode(message)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
-        webView.evaluateJavaScript("window.lidarScanCancelled && window.lidarScanCancelled(\(literal));")
+        webView.evaluateJavaScript("window.lidarScanCancelled && window.lidarScanCancelled(\(jsString(message)));")
+    }
+
+    private func notifyArCancelled(_ message: String) {
+        webView.evaluateJavaScript("window.arTapeCancelled && window.arTapeCancelled(\(jsString(message)));")
     }
 
     private func exportScan(_ json: String) {

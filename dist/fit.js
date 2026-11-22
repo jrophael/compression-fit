@@ -35,6 +35,30 @@ function footFit(size, system) {
   const band = footSizes.find(([,low,high]) => inBand(rounded, low, high));
   return {eu: rounded, footLength: eu / 1.5 - 1.5, size: band?.[0] ?? null, range: band ? band[1] + '–' + (band[2] - 1) : null};
 }
+// Markets. In Australia the ankle and calf circumferences come only from a physical tape
+// (typed in, or placed with the AR tape guide). Camera- and scan-derived girths are offered
+// only in Ireland, the UK and the EU, so in Australia those modes are hidden and refused.
+const markets = {
+  au: {label:'Australia', imageGirth:false, modes:['tape','ar']},
+  ie: {label:'Ireland, UK or EU', imageGirth:true, modes:['tape','ar','assisted','self','lidar']}
+};
+
+function defaultMarket(timeZone = '', search = '') {
+  const param = /[?&]market=(au|ie)(?:&|$)/i.exec(search || '');
+  if (param) return param[1].toLowerCase();
+  return /^Australia\//.test(timeZone || '') ? 'au' : 'ie';
+}
+
+const marketRules = market => markets[market] ?? markets.au;
+const arTools = market => marketRules(market).imageGirth ? ['guide','length','girth'] : ['guide','length'];
+
+// Fields a measurement source may fill in a market: tape (typed or AR-guided) fills all three;
+// camera, AR ruler and scan results fill only the length where image girths are not offered.
+function allowedFields(market, source) {
+  if (source === 'tape' || source === 'guided' || marketRules(market).imageGirth) return fields.slice();
+  return ['length'];
+}
+
 const isNear = (value, limits) => limits.some(limit => Math.abs(value - limit) <= 1);
 const inBand = (value, low, high) => value >= low && value < high;
 
@@ -131,13 +155,17 @@ function circumference(width, depth) {
   return Math.PI*(a+b)*(1+3*h/(10+Math.sqrt(4-3*h)));
 }
 
-if (typeof module !== 'undefined') module.exports = {fitStocking, shoeToEU, footFit, planeFromCorners, dimensions, circumference};
+if (typeof module !== 'undefined') module.exports = {fitStocking, shoeToEU, footFit, planeFromCorners, dimensions, circumference,
+  markets, defaultMarket, marketRules, arTools, allowedFields};
 if (typeof document !== 'undefined') start();
 
 function start() {
   const $ = id => document.getElementById(id);
   const preview = $('preview');
-  const state = {mode:'tape', leg:'left', records:{left:{},right:{}}, sources:{left:{},right:{}}, scans:{left:[],right:[]}, views:{}};
+  let timeZone = '';
+  try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* default market */ }
+  const state = {mode:'tape', leg:'left', market:defaultMarket(timeZone, location.search),
+    records:{left:{},right:{}}, sources:{left:{},right:{}}, scans:{left:[],right:[]}, views:{}};
   let stream, recorder, recordUrl, request = 0, videoKind, selectedView;
   const recordingCues = [];
   const prompts = [
@@ -277,14 +305,16 @@ function start() {
     $('result').hidden = true;
   }
 
-  const sourceLabels = {tape:'Tape', video:'Video estimate', scan:'LiDAR scan'};
-  const isEstimate = source => source === 'video' || source === 'scan';
+  const sourceLabels = {tape:'Tape', guided:'Tape (AR-guided)', video:'Video estimate', scan:'LiDAR scan', ar:'AR length ruler'};
+  const isEstimate = source => source === 'video' || source === 'scan' || source === 'ar';
 
-  function clearEstimates() {
-    for (const field of fields) {
-      if (isEstimate(state.sources[state.leg][field])) {
-        delete state.records[state.leg][field];
-        delete state.sources[state.leg][field];
+  function clearEstimates(legs = [state.leg]) {
+    for (const leg of legs) {
+      for (const field of fields) {
+        if (isEstimate(state.sources[leg][field])) {
+          delete state.records[leg][field];
+          delete state.sources[leg][field];
+        }
       }
     }
     updateRecord();
@@ -317,7 +347,7 @@ function start() {
   }
 
   function changeMode(mode) {
-    if (mode === state.mode) return;
+    if (mode === state.mode || !marketRules(state.market).modes.includes(mode)) return;
     clearEstimates();
     clearVideo();
     state.mode = mode;
@@ -328,7 +358,8 @@ function start() {
     }
     $('video-panel').hidden = mode !== 'assisted' && mode !== 'self';
     $('lidar-panel').hidden = mode !== 'lidar';
-    if (mode === 'lidar') renderScans();
+    $('ar-panel').hidden = mode !== 'ar';
+    if (mode === 'lidar' || mode === 'ar') renderScans();
     $('video-title').textContent = mode === 'assisted' ? 'Assisted video' : 'Self-scan';
     if (mode === 'assisted' || mode === 'self') {
       renderVideoSteps(steps[mode]);
@@ -336,10 +367,55 @@ function start() {
     $('tape-steps').hidden = mode !== 'tape';
     $('fit-explanation').textContent = mode === 'tape'
       ? 'Select a leg and enter its measurements in centimetres.'
-      : mode === 'lidar'
-        ? 'Scan results appear here once two scans of this leg agree within 1 cm. You can replace any value with a tape measurement.'
-        : 'Video estimates appear here after you mark both views. You can replace any value with a tape measurement.';
+      : mode === 'ar'
+        ? 'AR tape results appear here. You can replace any value with a tape measurement.'
+        : mode === 'lidar'
+          ? 'Scan results appear here once two scans of this leg agree within 1 cm. You can replace any value with a tape measurement.'
+          : 'Video estimates appear here after you mark both views. You can replace any value with a tape measurement.';
   }
+
+  // ---------- Market ----------
+  function applyMarket() {
+    const rules = marketRules(state.market);
+    $('market').value = state.market;
+    for (const button of document.querySelectorAll('[data-mode]')) {
+      button.hidden = !rules.modes.includes(button.dataset.mode);
+    }
+    for (const button of document.querySelectorAll('[data-goto]')) {
+      button.hidden = !rules.modes.includes(button.dataset.goto);
+    }
+    $('ar-girth-tool').hidden = !arTools(state.market).includes('girth');
+    $('market-note').textContent = rules.imageGirth
+      ? 'All measuring methods are available: tape, AR tape, video and LiDAR scan.'
+      : 'In Australia the ankle and calf are measured with a tape: typed in, or placed with the AR tape guide in the iPhone app. The AR length ruler can measure the length.';
+    $('ar-market-note').textContent = rules.imageGirth
+      ? ''
+      : 'In Australia the AR tools guide a real tape and measure the length. The ankle and calf readings always come from the tape.';
+    if (!rules.imageGirth) {
+      // Drop camera- or scan-derived girths entered under the other market.
+      for (const leg of ['left','right']) {
+        state.scans[leg] = [];
+        for (const field of ['ankle','calf']) {
+          if (isEstimate(state.sources[leg][field])) {
+            delete state.records[leg][field];
+            delete state.sources[leg][field];
+          }
+        }
+      }
+      updateRecord();
+      renderScans();
+    }
+    if (!rules.modes.includes(state.mode)) {
+      const previous = state.mode;
+      state.mode = null;
+      changeMode('tape');
+      if (state.mode !== 'tape') state.mode = previous;
+    }
+  }
+  $('market').addEventListener('change', () => {
+    state.market = $('market').value === 'ie' ? 'ie' : 'au';
+    applyMarket();
+  });
   document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => changeMode(button.dataset.mode)));
   // Android / non-LiDAR phones: buttons in the LiDAR panel switch to the tape or video modes.
   document.querySelectorAll('[data-goto]').forEach(button => button.addEventListener('click', () => {
@@ -381,14 +457,16 @@ function start() {
     const result = $('result');
     const values = Object.fromEntries(fields.map(field => [field,$(field).valueAsNumber]));
     const videoFields = fields.filter(field => isEstimate(state.sources[state.leg][field]));
-    const scanned = fields.some(field => state.sources[state.leg][field] === 'scan');
+    const kinds = new Set(videoFields.map(field => state.sources[state.leg][field]));
+    const scanned = kinds.has('scan');
+    const estimateWord = scanned ? 'scan' : kinds.has('video') ? 'video' : 'AR length';
     const fit = fitStocking(values, videoFields);
     const heading = document.createElement('h3');
     const note = document.createElement('p');
     const complete = fit.band && fit.cut && fit.length;
     if (fit.checks.length) {
       heading.textContent = 'Check ' + fit.checks.join(', ') + ' with tape';
-      note.textContent = 'The ' + (scanned ? 'scan' : 'video') + ' estimate is within the pilot’s 1 cm buffer of a size cutoff. Replace that measurement above and check again.';
+      note.textContent = 'The ' + estimateWord + ' estimate is within the pilot’s 1 cm buffer of a size cutoff. Replace that measurement above and check again.';
     } else if (!complete) {
       heading.textContent = 'Outside the pilot size chart';
       note.textContent = 'Check the measurements before trying a size. The pilot chart has no matching combination.';
@@ -397,7 +475,9 @@ function start() {
       note.textContent = videoFields.length
         ? (scanned
           ? 'Experimental LiDAR estimate from two scans that agreed within 1 cm. Confirm with tape until the scan is validated.'
-          : 'Experimental video estimate. Confirm with tape before using it to select a garment.')
+          : kinds.has('video')
+            ? 'Experimental video estimate. Confirm with tape before using it to select a garment.'
+            : 'Length from the AR length ruler, which is experimental. Confirm it with a tape until the ruler is validated.')
         : 'Matched to the provisional pilot chart. Use the actual stocking’s chart for a purchase.';
     }
     const parts = [heading, note];
@@ -534,7 +614,7 @@ function start() {
     const b = state.views.side?.dimensions;
     if (a && b) {
       const estimates = {ankle:circumference(a.ankle,b.ankle),calf:circumference(a.calf,b.calf),length:b.length};
-      for (const field of fields) {
+      for (const field of allowedFields(state.market, 'video')) {
         if (!state.records[state.leg][field]) {
           state.records[state.leg][field] = estimates[field].toFixed(1);
           state.sources[state.leg][field] = 'video';
@@ -605,8 +685,9 @@ function start() {
     ? 'Use the leg selected below. Keep the other leg apart from it.'
     : 'This needs the Compression Fit iPhone app, which is in development. Scan files exported from it can be uploaded above.';
 
+  // Scan messages go to the panel in use: the LiDAR panel, or the AR panel for the AR girth tape.
   function lidarStatus(message) {
-    $('lidar-status').textContent = message;
+    $(state.mode === 'ar' ? 'ar-status' : 'lidar-status').textContent = message;
   }
 
   function scanSvg(profile, scan) {
@@ -629,7 +710,8 @@ function start() {
 
   function renderScans() {
     const scans = state.scans[state.leg];
-    const container = $('lidar-scans');
+    const container = $(state.mode === 'ar' ? 'ar-scans' : 'lidar-scans');
+    $(state.mode === 'ar' ? 'lidar-scans' : 'ar-scans').replaceChildren();
     if (!scans.length) { container.replaceChildren(); return; }
     const rowsHtml = scans.map((scan, i) =>
       '<tr><th scope="row">Scan '+(i+1)+'</th><td>'+scan.ankle.toFixed(1)+'</td><td>'+scan.calf.toFixed(1)+'</td><td>'+(scan.belowKnee == null ? '–' : scan.belowKnee.toFixed(1))+'</td><td>'+scan.length.toFixed(1)+'</td></tr>').join('');
@@ -654,8 +736,8 @@ function start() {
       return;
     }
     clearEstimates();
-    for (const field of fields) {
-      if (state.sources[state.leg][field] === 'tape' && state.records[state.leg][field]) continue;
+    for (const field of allowedFields(state.market, 'scan')) {
+      if ((state.sources[state.leg][field] === 'tape' || state.sources[state.leg][field] === 'guided') && state.records[state.leg][field]) continue;
       state.records[state.leg][field] = comparison.mean[field].toFixed(1);
       state.sources[state.leg][field] = 'scan';
     }
@@ -666,6 +748,10 @@ function start() {
   }
 
   function receiveScan(scan) {
+    if (!marketRules(state.market).imageGirth) {
+      lidarStatus('Scan-based ankle and calf sizing is not available in Australia. Use the AR tape guide or Measure with tape.');
+      return;
+    }
     try {
       if (scan.leg === 'left' || scan.leg === 'right') {
         if (scan.leg !== state.leg) {
@@ -711,6 +797,10 @@ function start() {
     const files = Array.from($('lidar-file').files);
     $('lidar-file').value = '';
     if (!files.length) return;
+    if (!marketRules(state.market).imageGirth) {
+      lidarStatus('Scan uploads are not available in Australia. Use the AR tape guide or Measure with tape.');
+      return;
+    }
     // A Compression Fit scan file exported from the iPhone app.
     if (files.length === 1 && /\.json$/i.test(files[0].name)) {
       try {
@@ -759,6 +849,79 @@ function start() {
     lastUpload = upload;
     await showViewer(upload, upload.length);
   });
+
+  // ---------- AR tape (iPhone app) ----------
+  const arReady = Boolean(app && window.compressionFitApp?.ar);
+  $('ar-availability').textContent = arReady
+    ? 'Use the leg selected under Check a stocking size.'
+    : 'These tools run in the Compression Fit iPhone app, which is in development, on an iPhone 12 Pro or later Pro model. On other phones, use Measure with tape.';
+  const arNames = {guide:'AR tape guide', length:'AR length ruler', girth:'AR girth tape'};
+
+  function arStatus(message) {
+    $('ar-status').textContent = message;
+  }
+
+  function selectLeg(leg) {
+    if ((leg === 'left' || leg === 'right') && leg !== state.leg) {
+      state.leg = leg;
+      $('leg').value = leg;
+      updateRecord();
+      renderScans();
+    }
+  }
+
+  document.querySelectorAll('[data-ar]').forEach(button => button.addEventListener('click', () => {
+    const tool = button.dataset.ar;
+    if (!arTools(state.market).includes(tool)) {
+      arStatus('The ' + arNames[tool] + ' is not available in ' + marketRules(state.market).label + '.');
+      return;
+    }
+    if (!arReady) {
+      arStatus('Open this page in the Compression Fit iPhone app on an iPhone 12 Pro or later Pro model to use the ' + arNames[tool] + '.');
+      return;
+    }
+    arStatus('Opening the ' + arNames[tool] + '…');
+    app.postMessage({action:'arTape', tool, leg:state.leg, market:state.market});
+  }));
+
+  const inRange = (value, low, high) => Number.isFinite(value) && value >= low && value <= high;
+
+  // Called by the iPhone app with an AR tape result.
+  window.receiveArTape = result => {
+    if (!result || !arNames[result.tool]) return;
+    if (state.mode !== 'ar') changeMode('ar');
+    selectLeg(result.leg);
+    if (result.tool === 'girth') {
+      if (!marketRules(state.market).imageGirth) {
+        arStatus('The AR girth tape is not available in Australia. Use the AR tape guide with a real tape.');
+        return;
+      }
+      lastScanJson = JSON.stringify(result.scan);
+      receiveScan(result.scan);
+      return;
+    }
+    const length = Number(result.length);
+    if (!inRange(length, 15, 80)) {
+      arStatus('The AR length was outside 15–80 cm. Measure the length again or use a tape.');
+      return;
+    }
+    const record = state.records[state.leg], sources = state.sources[state.leg];
+    if (result.tool === 'guide') {
+      const ankle = Number(result.ankle), calf = Number(result.calf);
+      if (!inRange(ankle, 10, 65) || !inRange(calf, 15, 100) || calf <= ankle) {
+        arStatus('The tape readings could not be used. Check them and enter them under Check a stocking size.');
+        return;
+      }
+      record.ankle = ankle.toFixed(1); sources.ankle = 'guided';
+      record.calf = calf.toFixed(1); sources.calf = 'guided';
+    }
+    record.length = length.toFixed(1); sources.length = 'ar';
+    updateRecord();
+    arStatus(result.tool === 'guide'
+      ? 'Tape placement checked at the ankle and calf. The tape readings and the AR length are entered in Check a stocking size.'
+      : 'Length ' + length.toFixed(1) + ' cm from the AR length ruler is entered in Check a stocking size. Measure the ankle and calf with a tape.');
+  };
+  window.arTapeCancelled = message => arStatus(message || 'Cancelled.');
 
   // ---------- 3D viewer: tap the cuff point to set floor-to-cuff length ----------
   let lastUpload = null;
@@ -844,6 +1007,8 @@ function start() {
       lidarStatus('This scan could not be measured with that length. ' + error.message);
     }
   });
+
+  applyMarket();
 
   const rows = chart.map(row => '<tr><th scope="row">'+row.band+'</th><td>'+row.ankle.join('–')+'</td>'+
     row.cuts.map(([,low,high]) => '<td>'+low+'–'+high+'</td>').join('')+'</tr>');

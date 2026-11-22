@@ -12,6 +12,8 @@ import UIKit
 ///
 /// The circumferences come only from the physical tape. The camera and LiDAR locate the floor,
 /// measure heights (length and tape position) and draw the guides; they never measure girth.
+/// The guides are drawn as holograms (see Hologram.swift): tapes wrap themselves onto the leg,
+/// pulse while waiting, sparkle when placed, and results float beside the leg as cards.
 final class ARTapeViewController: UIViewController, ARSessionDelegate {
     enum Tool: String { case guide, length }
 
@@ -49,6 +51,8 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
     private var rulerNode: SCNNode?
     private var markerNode: SCNNode?
     private var ringNodes: [Site: SCNNode] = [:]
+    private var cardNodes: [Site: SCNNode] = [:]
+    private var summaryNode: SCNNode?
     private var ringHeights: [Site: Float] = [:]          // above the floor, metres
     private var frontTapHeights: [Site: Float] = [:]
     private var placement: [Site: (heightError: Float, levelError: Float)] = [:]
@@ -295,7 +299,7 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
                 return
             }
             placement[site] = (heightError: placement[site]?.heightError ?? 0, levelError: tilt)
-            if let ring = ringNodes[site] { recolour(ring, ARDrawing.lime) }
+            confirmPlacement(site)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             stage = .awaitingReading(site)
 
@@ -328,7 +332,9 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
             }
             self.readings[site] = value
             self.notice = nil
+            self.showReadingCard(site, value: value)
             self.stage = site == .ankle ? .awaitingMark(.calf) : .done
+            if site == .calf { self.showSummary() }
         })
         present(alert, animated: true)
     }
@@ -372,18 +378,23 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
         rulerNode?.removeFromParentNode()
         markerNode?.removeFromParentNode()
         let height = cuff.y - floorY
+        let floorPoint = SIMD3<Float>(cuff.x, floorY, cuff.z)
         let ruler = ARDrawing.verticalTape(height: height)
-        ruler.simdWorldPosition = SIMD3<Float>(cuff.x, floorY, cuff.z)
+        ruler.simdWorldPosition = floorPoint
         sceneView.scene.rootNode.addChildNode(ruler)
         rulerNode = ruler
+        Hologram.rise(ruler)
+        Hologram.sweep(in: sceneView.scene.rootNode, at: floorPoint, height: height)
 
         let marker = SCNNode()
         let dot = SCNSphere(radius: 0.008)
         dot.firstMaterial = ARDrawing.material(ARDrawing.lime)
-        marker.addChildNode(SCNNode(geometry: dot))
-        let text = ARDrawing.label(String(format: "%.1f cm", height * 100))
-        text.simdPosition = SIMD3<Float>(0, 0.03, 0)
-        marker.addChildNode(text)
+        let dotNode = SCNNode(geometry: dot)
+        marker.addChildNode(dotNode)
+        Hologram.pulse(dotNode)
+        let card = Hologram.card(["Length", String(format: "%.1f cm", height * 100)])
+        card.simdPosition = SIMD3<Float>(0, 0.05, 0)
+        marker.addChildNode(card)
         marker.simdWorldPosition = cuff
         sceneView.scene.rootNode.addChildNode(marker)
         markerNode = marker
@@ -397,10 +408,12 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
         away.y = 0
         let direction = simd_length(away) > 0.01 ? simd_normalize(away) : SIMD3<Float>(0, 0, -1)
         let radius: Float = site == .ankle ? 0.04 : 0.06
-        let ring = ARDrawing.ring(radius: radius + 0.006, colour: ARDrawing.amber)
+        let ring = Hologram.tape(radius: radius + 0.006, colour: ARDrawing.amber)
         ring.simdWorldPosition = point + direction * radius
         sceneView.scene.rootNode.addChildNode(ring)
         ringNodes[site] = ring
+        Hologram.wrap(ring)
+        Hologram.pulse(ring)
         ringHeights[site] = height
         frontTapHeights[site] = nil
         placement[site] = nil
@@ -410,10 +423,43 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
         ringNodes[site]?.removeFromParentNode()
         ringNodes[site] = nil
         ringHeights[site] = nil
+        cardNodes[site]?.removeFromParentNode()
+        cardNodes[site] = nil
+        summaryNode?.removeFromParentNode()
+        summaryNode = nil
     }
 
-    private func recolour(_ node: SCNNode, _ colour: UIColor) {
-        node.geometry?.firstMaterial?.diffuse.contents = colour
+    /// The tape is on the ring and level: turn it green and sparkle.
+    private func confirmPlacement(_ site: Site) {
+        guard let ring = ringNodes[site] else { return }
+        Hologram.stopPulse(ring)
+        Hologram.tint(ring, ARDrawing.lime)
+        Hologram.sparkle(around: ring, radius: (site == .ankle ? 0.04 : 0.06) + 0.006)
+    }
+
+    /// Floats the tape reading beside its ring.
+    private func showReadingCard(_ site: Site, value: Double) {
+        guard let ring = ringNodes[site] else { return }
+        cardNodes[site]?.removeFromParentNode()
+        let card = Hologram.card([siteName(site).capitalized, String(format: "%.1f cm ✓", value)])
+        card.simdWorldPosition = ring.simdWorldPosition + SIMD3<Float>(0, 0.045, 0)
+        sceneView.scene.rootNode.addChildNode(card)
+        cardNodes[site] = card
+    }
+
+    /// A summary card above the knee once everything is measured.
+    private func showSummary() {
+        guard let cuffPoint, let length = lengthCentimetres(),
+              let ankle = readings[.ankle], let calf = readings[.calf] else { return }
+        summaryNode?.removeFromParentNode()
+        let card = Hologram.card([
+            "Ready to size",
+            String(format: "Ankle %.1f · Calf %.1f cm", ankle, calf),
+            String(format: "Length %.1f cm", length)
+        ], textSize: 0.018)
+        card.simdWorldPosition = cuffPoint + SIMD3<Float>(0, 0.12, 0)
+        sceneView.scene.rootNode.addChildNode(card)
+        summaryNode = card
     }
 
     private func haptic() {

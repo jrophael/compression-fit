@@ -41,6 +41,7 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
     private var notice: String?
     private var ankleRing: SCNNode?
     private var calfRing: SCNNode?
+    private var completedRings: Set<String> = []
 
     init(leg: String) {
         self.leg = leg
@@ -260,24 +261,38 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
     private func placeCoverageRings(origin: SIMD3<Float>, cuffHeight: Float) {
         ankleRing?.removeFromParentNode()
         calfRing?.removeFromParentNode()
-        let ankle = ARDrawing.segmentedRing(radius: 0.05)
-        let calf = ARDrawing.segmentedRing(radius: 0.07)
+        let ankle = Hologram.tape(radius: 0.05, colour: ARDrawing.faint)
+        let calf = Hologram.tape(radius: 0.07, colour: ARDrawing.faint)
+        completedRings = []
         ankle.simdWorldPosition = origin + SIMD3<Float>(0, 0.11, 0)
         calf.simdWorldPosition = origin + SIMD3<Float>(0, (0.20 + max(0.21, cuffHeight - 0.04)) / 2, 0)
         sceneView.scene.rootNode.addChildNode(ankle)
         sceneView.scene.rootNode.addChildNode(calf)
         ankleRing = ankle
         calfRing = calf
+        Hologram.wrap(ankle)
+        Hologram.wrap(calf, duration: 1.1)
+        Hologram.sweep(in: sceneView.scene.rootNode, at: origin, height: cuffHeight)
     }
 
     private func updateCoverageRings(_ bands: (ankle: PointAccumulator.BandCoverage, calf: PointAccumulator.BandCoverage),
                                      origin: SIMD3<Float>) {
-        for (ring, band) in [(ankleRing, bands.ankle), (calfRing, bands.calf)] {
+        for (name, ring, band, radius) in [("ankle", ankleRing, bands.ankle, Float(0.05)), ("calf", calfRing, bands.calf, Float(0.07))] {
             guard let ring else { continue }
             if band.centre != .zero {
                 ring.simdWorldPosition = origin + SIMD3<Float>(band.centre.x, band.height, band.centre.y)
             }
             ARDrawing.colourSegments(of: ring, covered: band.sectors)
+            // When a tape is complete all the way round: green halo and a sparkle, once.
+            if band.fraction >= requiredCoverage && !completedRings.contains(name) {
+                completedRings.insert(name)
+                if let halo = ring.childNode(withName: "halo", recursively: false) {
+                    halo.geometry?.firstMaterial?.diffuse.contents = ARDrawing.lime.withAlphaComponent(0.25)
+                    halo.geometry?.firstMaterial?.emission.contents = ARDrawing.lime.withAlphaComponent(0.25)
+                }
+                Hologram.sparkle(around: ring, radius: radius)
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
         }
     }
 

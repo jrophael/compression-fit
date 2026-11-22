@@ -194,6 +194,42 @@
           <p class="secondary">Augmented-reality tools in the Compression Fit iPhone app. They need the LiDAR sensor of an iPhone 12 Pro or a later Pro model. Stand barefoot on a clear floor, legs a little apart, leg bare to above the knee. A helper holding the phone makes it easier.</p>
           <p id="ar-availability" class="field-help"></p>
 
+          <figure class="holo-preview" aria-label="Preview: virtual tapes wrap the ankle and calf, a vertical tape rises to the cuff point">
+            <svg viewBox="0 0 320 250" role="img">
+              <defs>
+                <filter id="holo-glow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="2.4" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <linearGradient id="holo-leg" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#5eeeff" stop-opacity="0.05"/>
+                  <stop offset="0.5" stop-color="#5eeeff" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#5eeeff" stop-opacity="0.05"/>
+                </linearGradient>
+              </defs>
+              <line class="holo-floor" x1="40" y1="232" x2="280" y2="232"/>
+              <path class="holo-leg" d="M116 26 C108 58 100 92 106 124 C111 152 125 176 127 196 L125 216 C124 228 142 232 176 232 C204 232 208 222 198 214 C186 205 174 200 173 192 C175 170 191 148 195 122 C199 92 191 58 183 26 Z"/>
+              <ellipse class="holo-sweep" cx="150" cy="232" rx="62" ry="9"/>
+              <g class="holo-ruler">
+                <rect x="222" y="40" width="9" height="192" rx="2"/>
+                <path d="M222 52h6M222 72h9M222 92h6M222 112h9M222 132h6M222 152h9M222 172h6M222 192h9M222 212h6"/>
+              </g>
+              <circle class="holo-cuff" cx="150" cy="40" r="4"/>
+              <g class="holo-card holo-card-length" transform="translate(240 30)">
+                <rect width="68" height="30" rx="5"/><text x="8" y="13">Length</text><text class="value" x="8" y="25">38.4 cm</text>
+              </g>
+              <ellipse class="holo-ring holo-ring-calf" cx="151" cy="104" rx="49" ry="8" pathLength="100"/>
+              <g class="holo-card holo-card-calf" transform="translate(16 82)">
+                <rect width="64" height="30" rx="5"/><text x="8" y="13">Calf</text><text class="value" x="8" y="25">39.0 cm ✓</text>
+              </g>
+              <ellipse class="holo-ring holo-ring-ankle" cx="150" cy="194" rx="25" ry="5.5" pathLength="100"/>
+              <g class="holo-card holo-card-ankle" transform="translate(30 176)">
+                <rect width="68" height="30" rx="5"/><text x="8" y="13">Ankle</text><text class="value" x="8" y="25">21.5 cm ✓</text>
+              </g>
+            </svg>
+            <figcaption>How the AR tape looks in the iPhone app: tapes wrap the leg, a length tape rises to the cuff point, and readings float beside the leg.</figcaption>
+          </figure>
+
           <div class="ar-tools">
             <article class="ar-tool">
               <h3>AR tape guide</h3>

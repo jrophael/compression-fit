@@ -22,7 +22,7 @@ open CompressionFit.xcodeproj
 
 In Xcode, select the CompressionFit target. Under **Signing & Capabilities**, choose your team, and change the bundle ID if needed. Then run on a connected LiDAR iPhone.
 
-Without XcodeGen: create a new iOS App project in Xcode (SwiftUI, Swift) named CompressionFit. Delete its generated `ContentView.swift` and app file, and add the six Swift files in `Sources/`. Add the `NSCameraUsageDescription` key and the `arkit` required device capability to the Info settings.
+Without XcodeGen: create a new iOS App project in Xcode (SwiftUI, Swift) named CompressionFit. Delete its generated `ContentView.swift` and app file, and add the seven Swift files in `Sources/`. Add the `NSCameraUsageDescription` key and the `arkit` required device capability to the Info settings.
 
 ## How it works
 
@@ -49,6 +49,16 @@ The page's **AR tape** mode posts `{action: 'arTape', tool, leg, market}`.
   4. Returns `{tool: 'guide', leg, ankle, calf, length, guideHeights, placementChecks}`. Heights and errors are in centimetres.
   The camera and LiDAR only locate the floor, measure heights and draw the guides. They never measure a circumference, so this tool is the Australian route.
 - **AR girth tape** (`tool: 'girth'`) is `ScanViewController`, now drawing two segmented virtual tapes at the ankle and calf band heights. Each 10° segment turns green when that sector has points (`PointAccumulator.bandCoverages()`), and the rings move to the leg centre as it is found. The scan returns to `window.receiveArTape({tool: 'girth', scan})`. `WebViewController` refuses it when `market` is `au`, as does the page.
+
+**Holographic look** (`Hologram.swift`, visual only, nothing in it measures):
+
+- All guides use a self-lit additive material drawn over the leg, so they read as light rather than solid objects.
+- Virtual tapes are rings of segments with a soft halo. They wrap themselves onto the leg segment by segment (`wrap`), breathe while the app waits for the user (`pulse`), and turn green with a burst of sparks when the tape is confirmed or a girth sector band is complete (`sparkle`).
+- The length tape grows up from the floor (`rise`) while a translucent disc sweeps up the leg (`sweep`).
+- Results float beside the leg as camera-facing cards with a cyan rim (`card`): the length at the cuff point, each tape reading beside its ring, and a summary above the knee.
+- All motion is skipped when Reduce Motion is on in iOS Settings.
+
+The web page's AR tape panel shows an animated SVG preview of the same look (CSS only; static when the browser asks for reduced motion).
 
 Test on a device: check that the rings sit on the skin at the expected heights, that a tape placed 2 cm off the ring is rejected, and that the vertical tape's length matches a tape measure within 1 cm.
 

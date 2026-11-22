@@ -75,11 +75,17 @@ enum ARDrawing {
     static let faint = UIColor(white: 1, alpha: 0.35)
     static let amber = UIColor(red: 1, green: 0.76, blue: 0.29, alpha: 1)
 
+    /// Holographic material: self-lit, additive (light that you see through) and drawn over
+    /// the leg so the guides stay visible all the way round.
     static func material(_ colour: UIColor) -> SCNMaterial {
         let material = SCNMaterial()
         material.diffuse.contents = colour
+        material.emission.contents = colour
         material.lightingModel = .constant
+        material.blendMode = .add
+        material.isDoubleSided = true
         material.readsFromDepthBuffer = false   // stay visible through the leg
+        material.writesToDepthBuffer = false
         return material
     }
 
@@ -113,8 +119,9 @@ enum ARDrawing {
 
     static func colourSegments(of ring: SCNNode, covered: [Bool]) {
         for (index, isCovered) in covered.enumerated() {
-            ring.childNode(withName: "segment-\(index)", recursively: false)?
-                .geometry?.firstMaterial?.diffuse.contents = isCovered ? lime : faint
+            let material = ring.childNode(withName: "segment-\(index)", recursively: false)?.geometry?.firstMaterial
+            material?.diffuse.contents = isCovered ? lime : faint
+            material?.emission.contents = isCovered ? lime : faint
         }
     }
 
@@ -122,7 +129,7 @@ enum ARDrawing {
     static func verticalTape(height: Float) -> SCNNode {
         let parent = SCNNode()
         let strip = SCNBox(width: 0.012, height: CGFloat(height), length: 0.001, chamferRadius: 0)
-        strip.firstMaterial = material(UIColor(red: 1, green: 0.93, blue: 0.55, alpha: 0.85))
+        strip.firstMaterial = material(Hologram.cyan.withAlphaComponent(0.35))
         let stripNode = SCNNode(geometry: strip)
         stripNode.simdPosition = SIMD3<Float>(0, height / 2, 0)
         stripNode.renderingOrder = 9
@@ -132,7 +139,7 @@ enum ARDrawing {
             for cm in 0...centimetres {
                 let major = cm % 5 == 0
                 let tick = SCNBox(width: major ? 0.012 : 0.006, height: 0.0008, length: 0.0012, chamferRadius: 0)
-                tick.firstMaterial = material(.black)
+                tick.firstMaterial = material(.white)
                 let tickNode = SCNNode(geometry: tick)
                 tickNode.simdPosition = SIMD3<Float>(major ? 0 : -0.003, Float(cm) / 100, 0.001)
                 tickNode.renderingOrder = 11

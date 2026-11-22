@@ -477,6 +477,67 @@ video {
 }
 
 .ar-tool[hidden] { display: none; }
+
+/* Holographic AR preview (illustration only; loops every 8 s) */
+.holo-preview {
+  margin: 14px 0 0;
+  padding: 10px 10px 12px;
+  border-radius: 14px;
+  background: radial-gradient(ellipse at 50% 40%, #0f3a40 0%, #071a1d 70%);
+}
+.holo-preview svg { display: block; width: 100%; max-width: 420px; margin: 0 auto; }
+.holo-preview figcaption { color: #a9e9f2; font-size: 13px; text-align: center; margin-top: 4px; }
+.holo-floor { stroke: #5eeeff; stroke-opacity: 0.35; stroke-dasharray: 3 5; }
+.holo-leg { fill: url(#holo-leg); stroke: #5eeeff; stroke-opacity: 0.55; stroke-width: 1.2; filter: url(#holo-glow); }
+.holo-ring { fill: none; stroke-width: 3; stroke-linecap: round; filter: url(#holo-glow);
+  stroke-dasharray: 100; stroke-dashoffset: 100; animation: holo-wrap 8s infinite; }
+.holo-ring-calf { animation-delay: 0.6s; }
+.holo-ring-ankle { animation-delay: 2.4s; }
+.holo-ruler rect { fill: #5eeeff; fill-opacity: 0.3; stroke: #5eeeff; }
+.holo-ruler path { stroke: #fff; stroke-width: 1; }
+.holo-ruler { transform-box: fill-box; transform-origin: 50% 100%; filter: url(#holo-glow); animation: holo-rise 8s infinite; }
+.holo-sweep { fill: #5eeeff; fill-opacity: 0.18; stroke: #5eeeff; stroke-opacity: 0.5; animation: holo-sweep 8s infinite; }
+.holo-cuff { fill: #c9ff81; filter: url(#holo-glow); animation: holo-pulse 1.6s ease-in-out infinite; }
+.holo-card rect { fill: #0b3940; fill-opacity: 0.75; stroke: #5eeeff; stroke-opacity: 0.6; }
+.holo-card text { fill: #fff; font-size: 9px; font-weight: 700; }
+.holo-card text.value { fill: #5eeeff; font-size: 10px; }
+.holo-card { opacity: 0; animation: holo-card 8s infinite; }
+.holo-card-length { animation-delay: 0.2s; }
+.holo-card-calf { animation-delay: 2.2s; }
+.holo-card-ankle { animation-delay: 4s; }
+
+@keyframes holo-wrap {
+  0% { stroke-dashoffset: 100; stroke: #ffc24a; opacity: 0; }
+  4% { opacity: 1; }
+  14% { stroke-dashoffset: 0; stroke: #ffc24a; }
+  20%, 85% { stroke-dashoffset: 0; stroke: #c9ff81; opacity: 1; }
+  95%, 100% { stroke-dashoffset: 0; stroke: #c9ff81; opacity: 0; }
+}
+@keyframes holo-rise {
+  0% { transform: scaleY(0); opacity: 0; }
+  3% { opacity: 1; }
+  12%, 88% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(1); opacity: 0; }
+}
+@keyframes holo-sweep {
+  0% { transform: translateY(0); opacity: 0; }
+  2% { opacity: 1; }
+  14% { transform: translateY(-192px); opacity: 0.8; }
+  18%, 100% { transform: translateY(-192px); opacity: 0; }
+}
+@keyframes holo-card {
+  0%, 10% { opacity: 0; transform-origin: center; }
+  16%, 85% { opacity: 1; }
+  95%, 100% { opacity: 0; }
+}
+@keyframes holo-pulse { 50% { opacity: 0.45; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .holo-ring, .holo-ruler, .holo-sweep, .holo-card, .holo-cuff { animation: none; }
+  .holo-ring { stroke-dashoffset: 0; stroke: #c9ff81; }
+  .holo-card { opacity: 1; }
+  .holo-sweep { opacity: 0; }
+}
 .ar-tool h3 { margin: 0; }
 .ar-tool p { margin: 0; flex: 1; font-size: 14px; color: var(--muted); }
 

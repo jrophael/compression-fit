@@ -98,3 +98,15 @@ To try the LiDAR flow in a browser, choose **LiDAR scan** and load `tests/fixtur
 ## Shoe size (foot sizing)
 
 An optional shoe size (AU men/women, UK, EU, US men/women) sizes the foot of the stocking. It is converted to EU via the standard last-length rules (last ≈ foot length + 1.5 cm; EU = 1.5 × last in cm; UK = 3 × last in inches − 25; US men = UK + 1; US and AU women = UK + 2) and matched to provisional foot sizes S 35–38, M 39–42, L 43–46, XL 47–50 (`footSizes` in `dist/fit.js`). Replace these with the chosen maker's chart. Tests: `node tests/fit.test.js`.
+
+## Compression profile selector
+
+Five questions (main reason, a safety screen, mobility, difficulty putting stockings on, ankle swelling) feed `recommendProfile(answers)` in `dist/fit.js`. It recommends one of these:
+
+- **graduated**: firmest at the ankle;
+- **progressive**: firmest at the calf;
+- **either**;
+- **refer**: see a clinician first;
+- **urgent**: possible clot, see a doctor today.
+
+Every retail answer is a below-knee, 15–20 mmHg stocking, with an evidence grade and its references. The rules apply in order and the safety screens come first. The size result shows the profile, and the hologram preview shades the stocking to match it (firmest at the ankle or at the calf). The rules and the evidence table are in the doc "Compression profile selector: logic and evidence". Tests: `tests/profile.test.js`.

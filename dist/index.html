@@ -259,6 +259,47 @@
         </section>
 
         <!-- Measurement entry and size result (all modes) -->
+        <section class="card" id="profile-panel" aria-labelledby="profile-title">
+          <h2 id="profile-title">Which compression suits you?</h2>
+          <p class="secondary">Five quick questions choose between a graduated stocking (firmest at the ankle) and a progressive one (firmest at the calf), based on published trials. Each answer shows the evidence behind it.</p>
+          <form id="profile-form" class="profile-form">
+            <fieldset>
+              <legend>1. Main reason for wearing them</legend>
+              <label><input type="radio" name="goal" value="travel"> Travel: flights over 4 hours or long drives</label>
+              <label><input type="radio" name="goal" value="heavy"> Heavy or aching legs, or varicose veins</label>
+              <label><input type="radio" name="goal" value="work"> Swelling from standing or sitting at work</label>
+              <label><input type="radio" name="goal" value="sport"> Sport or recovery</label>
+              <label><input type="radio" name="goal" value="prescribed"> Prescribed by a doctor, or another reason</label>
+            </fieldset>
+            <fieldset>
+              <legend>2. Do any of these apply? <span class="optional">(tick all that do)</span></legend>
+              <label><input type="checkbox" name="flag" value="clot"> One leg is suddenly swollen, red or painful</label>
+              <label><input type="checkbox" name="flag" value="circulation"> Poor circulation, or calf pain when walking</label>
+              <label><input type="checkbox" name="flag" value="diabetes"> Diabetes, or numb feet</label>
+              <label><input type="checkbox" name="flag" value="ulcer"> An open sore or ulcer on the leg</label>
+              <label><input type="checkbox" name="flag" value="skin"> Skin changes: brown staining or hard, tight skin</label>
+              <label><input type="checkbox" name="flag" value="lymphoedema"> Lymphoedema, or very swollen feet</label>
+            </fieldset>
+            <fieldset>
+              <legend>3. Most days you are</legend>
+              <label><input type="radio" name="mobility" value="active" checked> Walking about</label>
+              <label><input type="radio" name="mobility" value="immobile"> Mostly sitting or lying</label>
+            </fieldset>
+            <fieldset>
+              <legend>4. Do you find stockings hard to put on?</legend>
+              <label><input type="radio" name="donning" value="no" checked> No</label>
+              <label><input type="radio" name="donning" value="yes"> Yes, or I expect to</label>
+            </fieldset>
+            <fieldset>
+              <legend>5. Do your ankles or feet swell by the end of the day?</legend>
+              <label><input type="radio" name="swelling" value="no" checked> No</label>
+              <label><input type="radio" name="swelling" value="yes"> Yes</label>
+            </fieldset>
+          </form>
+          <div id="profile-result" class="profile-result" aria-live="polite" hidden></div>
+          <p class="field-help">This helps choose a retail stocking. It does not diagnose anything. Take stockings off if you feel numbness, tingling or pain, or the skin changes colour.</p>
+        </section>
+
         <section class="card" id="fit-panel">
           <h2>Check a stocking size</h2>
           <p class="secondary" id="fit-explanation">Select a leg and enter its measurements in centimetres.</p>

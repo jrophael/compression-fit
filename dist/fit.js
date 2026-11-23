@@ -107,7 +107,8 @@ function smoothPath(points) {
 // A front-view hologram of the leg drawn to the person's own measurements (4 px per cm,
 // widths from circumference ÷ π), wearing the recommended stocking with graduated shading.
 // Numbers only: no user text is placed in the markup.
-function fitPreviewSVG(measurements, fit) {
+function fitPreviewSVG(measurements, fit, profile = 'graduated') {
+  const progressive = profile === 'progressive';
   const ranges = fitRanges(measurements, fit);
   if (!ranges) return '';
   const {ankle, calf, length} = measurements;
@@ -144,11 +145,15 @@ function fitPreviewSVG(measurements, fit) {
   };
   // Indexes match the label order in fitRanges.
   const sizeNames = ranges.map(r => r.size);
-  return '<svg viewBox="0 0 320 290" role="img" aria-label="' + sizeNames.join(', ') + ' stocking on a hologram of the leg">' +
+  return '<svg viewBox="0 0 320 290" role="img" aria-label="' + sizeNames.join(', ') + (progressive ? ' progressive' : ' graduated') + ' stocking on a hologram of the leg">' +
     '<defs><linearGradient id="fit-pressure" x1="0" y1="1" x2="0" y2="0">' +
-    '<stop offset="0" stop-color="#5eeeff" stop-opacity="0.62"/>' +
-    '<stop offset="0.55" stop-color="#5eeeff" stop-opacity="0.38"/>' +
-    '<stop offset="1" stop-color="#5eeeff" stop-opacity="0.16"/></linearGradient>' +
+    (progressive
+      ? '<stop offset="0" stop-color="#5eeeff" stop-opacity="0.3"/>' +
+        '<stop offset="' + (calfHeight / length).toFixed(2) + '" stop-color="#5eeeff" stop-opacity="0.62"/>' +
+        '<stop offset="1" stop-color="#5eeeff" stop-opacity="0.2"/></linearGradient>'
+      : '<stop offset="0" stop-color="#5eeeff" stop-opacity="0.62"/>' +
+        '<stop offset="0.55" stop-color="#5eeeff" stop-opacity="0.38"/>' +
+        '<stop offset="1" stop-color="#5eeeff" stop-opacity="0.16"/></linearGradient>') +
     '<filter id="fit-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2" result="b"/>' +
     '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
     '<linearGradient id="fit-fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/>' +
@@ -164,9 +169,13 @@ function fitPreviewSVG(measurements, fit) {
       return '<ellipse class="fit-knit" cx="' + cx + '" cy="' + yy.toFixed(1) + '" rx="' + w.toFixed(1) + '" ry="3"/>';
     }).join('') +
     '<ellipse class="fit-cuff" cx="' + cx + '" cy="' + cuffY.toFixed(1) + '" rx="' + cuffHalf.toFixed(1) + '" ry="4"/></g>' +
-    '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + y(9).toFixed(1) + '" text-anchor="end">firmest</text>' +
-    '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + (cuffY + 4).toFixed(1) + '" text-anchor="end">lightest</text>' +
-    '<line class="fit-pressure-arrow" x1="' + (cx - c - 8).toFixed(1) + '" y1="' + y(10).toFixed(1) + '" x2="' + (cx - c - 8).toFixed(1) + '" y2="' + (cuffY + 2).toFixed(1) + '"/>' +
+    (progressive
+      ? '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + (y(calfHeight) + 4).toFixed(1) + '" text-anchor="end">firmest</text>' +
+        '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + y(9).toFixed(1) + '" text-anchor="end">lighter</text>' +
+        '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + (cuffY + 4).toFixed(1) + '" text-anchor="end">lighter</text>'
+      : '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + y(9).toFixed(1) + '" text-anchor="end">firmest</text>' +
+        '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + (cuffY + 4).toFixed(1) + '" text-anchor="end">lightest</text>' +
+        '<line class="fit-pressure-arrow" x1="' + (cx - c - 8).toFixed(1) + '" y1="' + y(10).toFixed(1) + '" x2="' + (cx - c - 8).toFixed(1) + '" y2="' + (cuffY + 2).toFixed(1) + '"/>') +
     ranges.map(gauge).join('') + '</svg>';
 }
 
@@ -249,8 +258,64 @@ function circumference(width, depth) {
   return Math.PI*(a+b)*(1+3*h/(10+Math.sqrt(4-3*h)));
 }
 
+
+// Needs-based compression profile. Graduated (degressive) stockings are firmest at the ankle;
+// progressive (reverse gradient) stockings are firmest at the calf. Rules run in order and the
+// first match wins; safety screens come first. Evidence summary: see the selector logic doc.
+const profileRefs = {
+  cochraneFlights: 'Clarke 2021, Cochrane (flights): below-knee graduated stockings, symptomless DVT OR 0.10',
+  couzan2012: 'Couzan 2012, J Vasc Surg (RCT, n=401): progressive 70.0% vs graduated 59.6% success; easier to put on 81.3% vs 49.7%',
+  riebe2018: 'Riebe 2018, Phlebology: graduated better for symptoms; progressive stockings slipped more',
+  mosti2011: 'Mosti & Partsch 2011, EJVES: higher calf pressure raised calf-pump ejection fraction',
+  mosti2013: 'Mosti & Partsch 2013, EJVES: occupational swelling reduced by both profiles',
+  anderson2013: 'Anderson 2013, Wounds UK: reverse gradient may allow foot and ankle swelling',
+  partschMosti2014: 'Partsch & Mosti 2014: sport socks do not enhance the calf pump',
+  rabe2018: 'Rabe 2018, Phlebology consensus: check arterial supply before compression',
+  flour2012: 'Flour 2012, Int Wound J (ICC): graduated is logical for people who are mostly lying or standing',
+  sajid2012: 'Sajid 2012, Cochrane: below-knee works as well as thigh-length after surgery'
+};
+
+const profiles = {
+  graduated: {name: 'Graduated', detail: 'Firmest at the ankle, easing towards the knee.'},
+  progressive: {name: 'Progressive', detail: 'Lighter at the ankle, firmest over the calf muscle.'},
+  either: {name: 'Graduated or progressive', detail: 'Both suit you. Graduated is the default; progressive is easier to put on.'}
+};
+
+function recommendProfile(answers) {
+  if (!answers || !answers.goal) return null;
+  const flags = new Set(answers.flags || []);
+  const base = {length: 'Below knee', cls: 'Light, 15–20 mmHg', sell: true, preview: 'graduated'};
+  const out = (kind, extra) => Object.assign({}, base, {kind}, profiles[kind] || {}, extra);
+  if (flags.has('clot')) return out('urgent', {name: 'See a doctor today', sell: false, preview: null, cls: '', length: '', grade: 'Urgent',
+    reason: 'A leg that is suddenly swollen, red or painful can be a blood clot. Don’t use compression until you have been checked.', refs: []});
+  if (flags.has('circulation') || flags.has('diabetes')) return out('refer', {name: 'Check your circulation first', sell: false, preview: null, cls: '', grade: 'Refer',
+    reason: 'Compression can be unsafe if the leg arteries are narrowed or the feet are numb. Have your ankle pulses or ankle pressure checked by a doctor or nurse before buying.',
+    refs: [profileRefs.rabe2018]});
+  if (flags.has('ulcer') || flags.has('skin') || flags.has('lymphoedema')) return out('refer', {name: 'Clinician-fitted graduated stocking', sell: false, preview: 'graduated', cls: 'Set by your clinician', grade: 'Refer',
+    reason: 'Ulcers, skin changes and lymphoedema need a stronger, prescribed graduated garment fitted by a clinician.', refs: [profileRefs.rabe2018, profileRefs.flour2012]});
+  if (answers.mobility === 'immobile') return out('refer', {name: 'Ask your clinician', sell: false, preview: 'graduated', cls: 'Set by your clinician', grade: 'Refer',
+    reason: 'Progressive stockings rely on walking. If you are mostly sitting or lying, a graduated stocking should be chosen and checked by a clinician.', refs: [profileRefs.flour2012]});
+  if (answers.goal === 'prescribed') return out('prescribed', {name: 'Follow your prescription', preview: 'graduated', cls: 'As prescribed', grade: 'Prescription',
+    reason: 'Use the profile and class your doctor prescribed. Compression Fit sizes it for you.', refs: []});
+  if (answers.swelling) return out('graduated', {grade: 'Moderate',
+    reason: 'Ankle and foot swelling is best controlled by the highest pressure at the ankle.', refs: [profileRefs.anderson2013, profileRefs.mosti2013]});
+  if (answers.goal === 'travel') return out('graduated', {grade: 'High',
+    reason: 'Below-knee graduated stockings are the only profile shown in randomised trials to reduce clots on long flights.', refs: [profileRefs.cochraneFlights, profileRefs.sajid2012]});
+  if (answers.goal === 'heavy') return answers.donning
+    ? out('progressive', {preview: 'progressive', grade: 'Moderate',
+      reason: 'For active people with heavy or aching legs, progressive stockings worked at least as well in a large trial and were much easier to put on. They can slip more, so check the top band each day.',
+      refs: [profileRefs.couzan2012, profileRefs.riebe2018]})
+    : out('either', {grade: 'Low (trials conflict)',
+      reason: 'One large trial favoured progressive and another favoured graduated for symptoms. Choose by comfort.',
+      refs: [profileRefs.couzan2012, profileRefs.riebe2018, profileRefs.mosti2011]});
+  if (answers.goal === 'work') return out('either', {preview: answers.donning ? 'progressive' : 'graduated', grade: 'Low',
+    reason: 'For swelling from standing or sitting at work, both profiles reduced leg volume by similar amounts.', refs: [profileRefs.mosti2013]});
+  return out('either', {preview: answers.donning ? 'progressive' : 'graduated', grade: 'Low', name: 'Either, for comfort',
+    reason: 'Compression may feel good after sport, but it has not been shown to improve performance or the calf pump. Sold for comfort only.', refs: [profileRefs.partschMosti2014]});
+}
+
 if (typeof module !== 'undefined') module.exports = {fitStocking, shoeToEU, footFit, planeFromCorners, dimensions, circumference,
-  markets, defaultMarket, marketRules, arTools, allowedFields, fitRanges, fitPreviewSVG};
+  markets, defaultMarket, marketRules, arTools, allowedFields, fitRanges, fitPreviewSVG, recommendProfile, profiles};
 if (typeof document !== 'undefined') start();
 
 function start() {
@@ -258,7 +323,7 @@ function start() {
   const preview = $('preview');
   let timeZone = '';
   try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* default market */ }
-  const state = {mode:'tape', leg:'left', market:defaultMarket(timeZone, location.search),
+  const state = {mode:'tape', leg:'left', profile:null, market:defaultMarket(timeZone, location.search),
     records:{left:{},right:{}}, sources:{left:{},right:{}}, scans:{left:[],right:[]}, views:{}};
   let stream, recorder, recordUrl, request = 0, videoKind, selectedView;
   const recordingCues = [];
@@ -547,6 +612,57 @@ function start() {
     updateRecord();
     renderScans();
   });
+  // Compression profile selector.
+  const profileForm = $('profile-form');
+  const readProfile = () => {
+    const data = new FormData(profileForm);
+    return {goal: data.get('goal'), flags: data.getAll('flag'), mobility: data.get('mobility'),
+      donning: data.get('donning') === 'yes', swelling: data.get('swelling') === 'yes'};
+  };
+  const profileCard = rec => {
+    const box = document.createElement('div');
+    box.className = 'profile-card profile-' + rec.kind;
+    const title = document.createElement('h3');
+    title.textContent = rec.name;
+    const lines = [];
+    if (rec.detail) lines.push(rec.detail);
+    lines.push(rec.reason);
+    const body = lines.map(text => { const p = document.createElement('p'); p.textContent = text; return p; });
+    const facts = document.createElement('dl');
+    for (const [term, value] of [['Length', rec.length], ['Class', rec.cls], ['Evidence', rec.grade]]) {
+      if (!value) continue;
+      const dt = document.createElement('dt'); dt.textContent = term;
+      const dd = document.createElement('dd'); dd.textContent = value;
+      facts.append(dt, dd);
+    }
+    box.append(title, ...body, facts);
+    if (rec.sell && rec.kind !== 'prescribed') {
+      const more = document.createElement('p');
+      more.className = 'secondary';
+      more.textContent = '20–30 mmHg only on a clinician’s advice.';
+      box.append(more);
+    }
+    if (rec.refs.length) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = 'The evidence';
+      const list = document.createElement('ul');
+      for (const ref of rec.refs) { const li = document.createElement('li'); li.textContent = ref; list.append(li); }
+      details.append(summary, list);
+      box.append(details);
+    }
+    return box;
+  };
+  const updateProfile = () => {
+    state.profile = recommendProfile(readProfile());
+    const box = $('profile-result');
+    box.hidden = !state.profile;
+    if (state.profile) box.replaceChildren(profileCard(state.profile));
+    if (!$('result').hidden) form.requestSubmit();
+  };
+  profileForm.addEventListener('change', updateProfile);
+  profileForm.addEventListener('submit', event => event.preventDefault());
+
   form.addEventListener('submit', event => {
     event.preventDefault();
     const result = $('result');
@@ -578,12 +694,30 @@ function start() {
         : 'Matched to the provisional pilot chart. Use the actual stocking’s chart for a purchase.';
     }
     const parts = [heading, note];
-    if (complete && !fit.checks.length) {
+    const rec = state.profile;
+    if (rec) {
+      const line = document.createElement('p');
+      line.className = 'profile-line profile-' + rec.kind;
+      line.textContent = rec.sell
+        ? 'Compression: ' + rec.name + ', ' + rec.cls + ', ' + rec.length.toLowerCase() + '.'
+        : rec.name + '. ' + rec.reason;
+      parts.push(line);
+    } else {
+      const line = document.createElement('p');
+      line.className = 'secondary';
+      line.textContent = 'Answer “Which compression suits you?” above to choose between graduated and progressive.';
+      parts.push(line);
+    }
+    const previewProfile = rec ? rec.preview : 'graduated';
+    if (complete && !fit.checks.length && previewProfile) {
       const figure = document.createElement('figure');
       figure.className = 'fit-preview';
-      figure.innerHTML = fitPreviewSVG(values, fit);
+      figure.innerHTML = fitPreviewSVG(values, fit, previewProfile);
       const caption = document.createElement('figcaption');
-      caption.textContent = 'Your leg, drawn to your measurements, in the recommended stocking. The shading shows the graduated compression: firmest at the ankle, easing towards the knee. The gauges show where you sit within each size.';
+      caption.textContent = 'Your leg, drawn to your measurements, in the recommended stocking. ' + (previewProfile === 'progressive'
+        ? 'The shading shows the progressive compression: lighter at the ankle, firmest over the calf.'
+        : 'The shading shows the graduated compression: firmest at the ankle, easing towards the knee.') +
+        ' The gauges show where you sit within each size.';
       figure.append(caption);
       parts.push(figure);
     }

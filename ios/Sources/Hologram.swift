@@ -131,6 +131,46 @@ enum Hologram {
         emitter.runAction(.sequence([.wait(duration: 1.2), .removeFromParentNode()]))
     }
 
+    // MARK: - Stocking preview
+
+    /// A holographic knee-high stocking drawn from the tape readings: rings stacked from the floor
+    /// to the cuff, with radius from circumference ÷ 2π (plus 4 mm to sit on the skin) and centres
+    /// following the leg. Shading is strongest at the ankle and fades towards the cuff, like the
+    /// graduated compression. The rings slide on from the floor up.
+    ///
+    /// - Parameters: heights in metres above the floor; `centre(h)` returns the world centre.
+    static func stocking(ankleCircumference: Float, calfCircumference: Float,
+                         ankleHeight: Float, calfHeight: Float, cuffHeight: Float,
+                         floorY: Float, centre: (Float) -> SIMD3<Float>) -> SCNNode {
+        let parent = SCNNode()
+        parent.name = "hologram-stocking"
+        let ankleRadius = ankleCircumference / (2 * .pi) + 0.004
+        let calfRadius = calfCircumference / (2 * .pi) + 0.004
+        func radius(_ h: Float) -> Float {
+            if h <= ankleHeight { return ankleRadius * (1 + 0.18 * (ankleHeight - h) / max(0.01, ankleHeight)) }
+            if h <= calfHeight { return ankleRadius + (calfRadius - ankleRadius) * (h - ankleHeight) / max(0.01, calfHeight - ankleHeight) }
+            return calfRadius - (calfRadius * 0.15) * (h - calfHeight) / max(0.01, cuffHeight - calfHeight)
+        }
+        let count = 16
+        for step in 0...count {
+            let h = 0.01 + (cuffHeight - 0.01) * Float(step) / Float(count)
+            let isCuff = step == count
+            let strength = 1 - Float(step) / Float(count)          // 1 at the ankle, 0 at the cuff
+            let colour = isCuff ? ARDrawing.lime : cyan.withAlphaComponent(CGFloat(0.18 + 0.5 * strength))
+            let torus = SCNTorus(ringRadius: CGFloat(radius(h)), pipeRadius: isCuff ? 0.004 : 0.0022)
+            torus.firstMaterial = ARDrawing.material(colour)
+            let ring = SCNNode(geometry: torus)
+            ring.renderingOrder = 9
+            ring.simdWorldPosition = centre(h)
+            parent.addChildNode(ring)
+            if !reduceMotion {
+                ring.opacity = 0
+                ring.runAction(.sequence([.wait(duration: 0.06 * Double(step)), .fadeIn(duration: 0.2)]))
+            }
+        }
+        return parent
+    }
+
     // MARK: - Floating cards
 
     /// A camera-facing holographic card: glowing text on a translucent panel with a cyan rim.

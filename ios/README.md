@@ -56,6 +56,7 @@ The page's **AR tape** mode posts `{action: 'arTape', tool, leg, market}`.
 - Virtual tapes are rings of segments with a soft halo. They wrap themselves onto the leg segment by segment (`wrap`), breathe while the app waits for the user (`pulse`), and turn green with a burst of sparks when the tape is confirmed or a girth sector band is complete (`sparkle`).
 - The length tape grows up from the floor (`rise`) while a translucent disc sweeps up the leg (`sweep`).
 - Results float beside the leg as camera-facing cards with a cyan rim (`card`): the length at the cuff point, each tape reading beside its ring, and a summary above the knee.
+- When both tape readings are in, a holographic stocking slides onto the leg (`stocking`): 17 rings from the floor to the cuff, radius from the tape circumference ÷ 2π, shading strongest at the ankle, lime cuff ring. It uses the typed tape readings only.
 - All motion is skipped when Reduce Motion is on in iOS Settings.
 
 The web page's AR tape panel shows an animated SVG preview of the same look (CSS only; static when the browser asks for reduced motion).

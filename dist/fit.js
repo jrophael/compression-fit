@@ -76,6 +76,100 @@ function fitStocking(measurements, videoFields = []) {
   return {band:band?.band, cut:cut?.[0], length:lengthBand?.[0], checks};
 }
 
+// ---------- Stocking-fit preview ----------
+// The size ranges a fit falls in, and where each measurement sits within its range (0–1).
+function fitRanges(measurements, fit) {
+  const band = chart.find(row => row.band === fit.band);
+  const cut = band?.cuts.find(([name]) => name === fit.cut);
+  const length = lengths.find(([name]) => name === fit.length);
+  if (!band || !cut || !length) return null;
+  const position = (value, low, high) => Math.min(1, Math.max(0, (value - low) / (high - low)));
+  return [
+    {field:'ankle', label:'Ankle band', size:band.band, low:band.ankle[0], high:band.ankle[1], value:measurements.ankle},
+    {field:'calf', label:'Calf', size:cut[0], low:cut[1], high:cut[2], value:measurements.calf},
+    {field:'length', label:'Length', size:length[0], low:length[1], high:length[2], value:measurements.length}
+  ].map(range => ({...range, position:position(range.value, range.low, range.high)}));
+}
+
+// Smooth closed outline through points (Catmull-Rom → cubic Bézier).
+function smoothPath(points) {
+  const n = points.length;
+  let d = 'M' + points[0].map(v => v.toFixed(1)).join(' ');
+  for (let i = 0; i < n; i++) {
+    const p0 = points[(i - 1 + n) % n], p1 = points[i], p2 = points[(i + 1) % n], p3 = points[(i + 2) % n];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ' C' + [...c1, ...c2, ...p2].map(v => v.toFixed(1)).join(' ');
+  }
+  return d + 'Z';
+}
+
+// A front-view hologram of the leg drawn to the person's own measurements (4 px per cm,
+// widths from circumference ÷ π), wearing the recommended stocking with graduated shading.
+// Numbers only: no user text is placed in the markup.
+function fitPreviewSVG(measurements, fit) {
+  const ranges = fitRanges(measurements, fit);
+  if (!ranges) return '';
+  const {ankle, calf, length} = measurements;
+  const px = 4, floor = 262, cx = 110;
+  const y = h => floor - h * px;
+  const half = circumference => circumference / Math.PI / 2 * px * 1.1;
+  const calfHeight = Math.min(length - 5, Math.max(20, length * 0.72));
+  const a = half(ankle), c = half(calf), knee = c * 0.8;
+  // Leg outline from the knee down to the heel, front view, with a foot pointing towards the viewer.
+  const right = [[cx + knee * 0.96, y(length + 7)], [cx + knee, y(length)], [cx + c * 0.94, y((length + calfHeight) / 2)],
+    [cx + c, y(calfHeight)], [cx + (a + c) / 2 * 0.95, y((calfHeight + 10) / 2)], [cx + a, y(10)],
+    [cx + a * 1.15, y(5)], [cx + a * 1.5, y(1.2)]];
+  const left = right.map(([x, yy]) => [2 * cx - x, yy]).reverse();
+  const leg = smoothPath([...right, [cx + a * 1.2, y(-1.5)], [cx - a * 1.2, y(-1.5)], ...left]);
+  // Stocking: the same outline from the foot up to the cuff (length), slightly inside the skin.
+  const inset = 0.94;
+  const sRight = right.slice(1).map(([x, yy]) => [cx + (x - cx) * inset, yy]);
+  const stocking = smoothPath([...sRight, [cx + a * 1.12, y(-1.2)], [cx - a * 1.12, y(-1.2)],
+    ...sRight.map(([x, yy]) => [2 * cx - x, yy]).reverse()]);
+  const cuffY = y(length), cuffHalf = knee * inset;
+  const gauge = (range, index) => {
+    const top = 34 + index * 76, x0 = 206, width = 100;
+    const marker = x0 + range.position * width;
+    return '<g class="fit-gauge" transform="translate(0 ' + top + ')">' +
+      '<text class="gauge-label" x="' + x0 + '" y="0">' + ['Ankle','Calf','Length'][index] +
+      ' <tspan class="gauge-value">' + range.value.toFixed(1) + ' cm</tspan></text>' +
+      '<text class="gauge-size" x="' + x0 + '" y="17">' + range.size + '</text>' +
+      '<rect class="gauge-track" x="' + x0 + '" y="26" width="' + width + '" height="6" rx="3"/>' +
+      '<rect class="gauge-fill" x="' + x0 + '" y="26" width="' + (range.position * width).toFixed(1) + '" height="6" rx="3"/>' +
+      '<circle class="gauge-marker" cx="' + marker.toFixed(1) + '" cy="29" r="5"/>' +
+      '<text class="gauge-end" x="' + x0 + '" y="46">' + range.low + '</text>' +
+      '<text class="gauge-end" x="' + (x0 + width) + '" y="46" text-anchor="end">' + range.high + ' cm</text>' +
+      '</g>';
+  };
+  // Indexes match the label order in fitRanges.
+  const sizeNames = ranges.map(r => r.size);
+  return '<svg viewBox="0 0 320 290" role="img" aria-label="' + sizeNames.join(', ') + ' stocking on a hologram of the leg">' +
+    '<defs><linearGradient id="fit-pressure" x1="0" y1="1" x2="0" y2="0">' +
+    '<stop offset="0" stop-color="#5eeeff" stop-opacity="0.62"/>' +
+    '<stop offset="0.55" stop-color="#5eeeff" stop-opacity="0.38"/>' +
+    '<stop offset="1" stop-color="#5eeeff" stop-opacity="0.16"/></linearGradient>' +
+    '<filter id="fit-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2" result="b"/>' +
+    '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<linearGradient id="fit-fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/>' +
+    '<stop offset="0.12" stop-color="#fff" stop-opacity="1"/></linearGradient>' +
+    '<mask id="fit-leg-mask"><rect x="0" y="' + y(length + 7).toFixed(1) + '" width="220" height="' + ((length + 9) * px).toFixed(1) + '" fill="url(#fit-fade)"/></mask>' +
+    '<clipPath id="fit-on"><rect class="fit-on-rect" x="0" y="0" width="200" height="290"/></clipPath></defs>' +
+    '<line class="fit-floor" x1="30" y1="' + (floor + 7) + '" x2="190" y2="' + (floor + 7) + '"/>' +
+    '<path class="fit-leg" mask="url(#fit-leg-mask)" d="' + leg + '"/>' +
+    '<g clip-path="url(#fit-on)"><path class="fit-stocking" d="' + stocking + '"/>' +
+    [0.25, 0.5, 0.75].map(f => {
+      const h = 10 + (length - 10) * f, yy = y(h);
+      const w = (f < 0.6 ? a + (c - a) * Math.min(1, (h - 10) / (calfHeight - 10)) : c - (c - knee) * ((h - calfHeight) / (length - calfHeight))) * inset;
+      return '<ellipse class="fit-knit" cx="' + cx + '" cy="' + yy.toFixed(1) + '" rx="' + w.toFixed(1) + '" ry="3"/>';
+    }).join('') +
+    '<ellipse class="fit-cuff" cx="' + cx + '" cy="' + cuffY.toFixed(1) + '" rx="' + cuffHalf.toFixed(1) + '" ry="4"/></g>' +
+    '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + y(9).toFixed(1) + '" text-anchor="end">firmest</text>' +
+    '<text class="fit-pressure" x="' + (cx - c - 14).toFixed(1) + '" y="' + (cuffY + 4).toFixed(1) + '" text-anchor="end">lightest</text>' +
+    '<line class="fit-pressure-arrow" x1="' + (cx - c - 8).toFixed(1) + '" y1="' + y(10).toFixed(1) + '" x2="' + (cx - c - 8).toFixed(1) + '" y2="' + (cuffY + 2).toFixed(1) + '"/>' +
+    ranges.map(gauge).join('') + '</svg>';
+}
+
 const distance = (a,b) => Math.hypot(a[0]-b[0],a[1]-b[1]);
 
 function planeFromCorners(corners) {
@@ -156,7 +250,7 @@ function circumference(width, depth) {
 }
 
 if (typeof module !== 'undefined') module.exports = {fitStocking, shoeToEU, footFit, planeFromCorners, dimensions, circumference,
-  markets, defaultMarket, marketRules, arTools, allowedFields};
+  markets, defaultMarket, marketRules, arTools, allowedFields, fitRanges, fitPreviewSVG};
 if (typeof document !== 'undefined') start();
 
 function start() {
@@ -481,6 +575,15 @@ function start() {
         : 'Matched to the provisional pilot chart. Use the actual stocking’s chart for a purchase.';
     }
     const parts = [heading, note];
+    if (complete && !fit.checks.length) {
+      const figure = document.createElement('figure');
+      figure.className = 'fit-preview';
+      figure.innerHTML = fitPreviewSVG(values, fit);
+      const caption = document.createElement('figcaption');
+      caption.textContent = 'Your leg, drawn to your measurements, in the recommended stocking. The shading shows the graduated compression: firmest at the ankle, easing towards the knee. The gauges show where you sit within each size.';
+      figure.append(caption);
+      parts.push(figure);
+    }
     const shoe = footFit($('shoe').valueAsNumber, $('shoe-system').value);
     if (shoe) {
       const foot = document.createElement('p');

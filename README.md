@@ -54,6 +54,12 @@ The reason is patent clearance: in Australia, ready-made garment selection from 
 
 The page calls the app with `{action: 'arTape', tool, leg, market}` and receives `window.receiveArTape(result)` (`{tool: 'guide'|'length', leg, ankle?, calf?, length, guideHeights?, placementChecks?}` or `{tool: 'girth', scan}`) or `window.arTapeCancelled(message)`. The AR length is treated as an estimate, so lengths within 1 cm of a cutoff prompt a tape check.
 
+## Stocking-fit preview
+
+When a size is found, the result shows a hologram of the leg drawn to the person's own measurements (4 px per cm; widths from circumference ÷ π), wearing the recommended stocking. Shading shows the graduated compression, firmest at the ankle and easing towards the knee, and gauges show where each measurement sits within its size range (`fitRanges`, `fitPreviewSVG`, tested by `tests/preview.test.js`). It is not shown when a measurement needs a tape check or is outside the chart.
+
+In the iPhone app, the AR tape guide slides a holographic stocking onto the real leg once both tape readings are in: rings from the floor to the cuff, sized from the tape readings (not the camera), so it is the same in every market.
+
 ## Limits and next validation
 
 Calibration and landmarks are currently marked by hand. Automatic frame selection, landmark detection and AI segmentation are future work. The camera method is a two-view approximation, not a 3D reconstruction. Perspective and depth mismatch, leg rotation, lens distortion and landmark placement can affect accuracy.

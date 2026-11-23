@@ -53,6 +53,7 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
     private var ringNodes: [Site: SCNNode] = [:]
     private var cardNodes: [Site: SCNNode] = [:]
     private var summaryNode: SCNNode?
+    private var stockingNode: SCNNode?
     private var ringHeights: [Site: Float] = [:]          // above the floor, metres
     private var frontTapHeights: [Site: Float] = [:]
     private var placement: [Site: (heightError: Float, levelError: Float)] = [:]
@@ -427,6 +428,8 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
         cardNodes[site] = nil
         summaryNode?.removeFromParentNode()
         summaryNode = nil
+        stockingNode?.removeFromParentNode()
+        stockingNode = nil
     }
 
     /// The tape is on the ring and level: turn it green and sparkle.
@@ -460,6 +463,31 @@ final class ARTapeViewController: UIViewController, ARSessionDelegate {
         card.simdWorldPosition = cuffPoint + SIMD3<Float>(0, 0.12, 0)
         sceneView.scene.rootNode.addChildNode(card)
         summaryNode = card
+        showStocking()
+    }
+
+    /// Slides a holographic stocking onto the leg, drawn from the tape readings (not the camera).
+    private func showStocking() {
+        guard let floorY = floor.y, let cuffPoint,
+              let ankle = readings[.ankle], let calf = readings[.calf],
+              let ankleRing = ringNodes[.ankle], let calfRing = ringNodes[.calf],
+              let ankleHeight = ringHeights[.ankle], let calfHeight = ringHeights[.calf] else { return }
+        stockingNode?.removeFromParentNode()
+        let ankleCentre = ankleRing.simdWorldPosition, calfCentre = calfRing.simdWorldPosition
+        let cuffHeight = cuffPoint.y - floorY
+        let stocking = Hologram.stocking(
+            ankleCircumference: Float(ankle) / 100, calfCircumference: Float(calf) / 100,
+            ankleHeight: ankleHeight, calfHeight: calfHeight, cuffHeight: cuffHeight, floorY: floorY
+        ) { h in
+            // Leg centre: the ankle ring's below the ankle, the calf ring's above the calf, blended between.
+            let t = min(1, max(0, (h - ankleHeight) / max(0.01, calfHeight - ankleHeight)))
+            let c = ankleCentre + (calfCentre - ankleCentre) * t
+            return SIMD3<Float>(c.x, floorY + h, c.z)
+        }
+        sceneView.scene.rootNode.addChildNode(stocking)
+        stockingNode = stocking
+        // The placement rings make way for the stocking.
+        for ring in [ankleRing, calfRing] { ring.runAction(.fadeOpacity(to: 0.25, duration: 0.4)) }
     }
 
     private func haptic() {

@@ -18,7 +18,7 @@ targets:
         CFBundleDisplayName: Compression Fit
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
-        NSCameraUsageDescription: "The camera and LiDAR sensor measure the leg for stocking sizing. Scans stay on this iPhone unless you export them."
+        NSCameraUsageDescription: "The cameras, LiDAR and Face ID depth sensor measure the leg for stocking sizing. Scans stay on this iPhone unless you export them or send them to Compression Fit to measure."
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

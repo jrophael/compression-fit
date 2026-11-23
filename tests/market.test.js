@@ -18,12 +18,12 @@ assert.strictEqual(marketRules('au').imageGirth, false);
 assert.deepStrictEqual(arTools('au'), ['guide', 'length']);
 assert.deepStrictEqual(allowedFields('au', 'tape'), ['ankle', 'calf', 'length']);
 assert.deepStrictEqual(allowedFields('au', 'guided'), ['ankle', 'calf', 'length']);
-for (const source of ['video', 'scan', 'ar']) {
+for (const source of ['video', 'scan', 'ar', 'depth']) {
   assert.deepStrictEqual(allowedFields('au', source), ['length'], source);
 }
 
 // Ireland, UK and EU: every method.
-assert.deepStrictEqual(arTools('ie'), ['guide', 'length', 'girth']);
+assert.deepStrictEqual(arTools('ie'), ['guide', 'length', 'girth', 'truedepth']);
 for (const source of ['video', 'scan', 'ar', 'tape', 'guided']) {
   assert.deepStrictEqual(allowedFields('ie', source), ['ankle', 'calf', 'length'], source);
 }

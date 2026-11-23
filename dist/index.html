@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="fit.css?v=__VERSION__">
   <script defer src="scan.js?v=__VERSION__"></script>
   <script defer src="models.js?v=__VERSION__"></script>
+  <script defer src="truedepth.js?v=__VERSION__"></script>
   <script defer src="fit.js?v=__VERSION__"></script>
   <script type="importmap">{"imports": {"three": "./vendor/three/three.module.min.js"}}</script>
   <script type="module" src="viewer.js?v=__VERSION__"></script>
@@ -191,7 +192,7 @@
         <!-- AR tape tools (Compression Fit iPhone app, LiDAR models) -->
         <section class="card" id="ar-panel" hidden>
           <h2>AR tape</h2>
-          <p class="secondary">Augmented-reality tools in the Compression Fit iPhone app. They need the LiDAR sensor of an iPhone 12 Pro or a later Pro model. Stand barefoot on a clear floor, legs a little apart, leg bare to above the knee. A helper holding the phone makes it easier.</p>
+          <p class="secondary">Augmented-reality tools in the Compression Fit iPhone app. The tape guide, length ruler and girth tape need the LiDAR sensor of an iPhone 12 Pro or a later Pro model; the Face ID depth scan works on any iPhone with Face ID. Stand barefoot on a clear floor, legs a little apart, leg bare to above the knee. A helper holding the phone makes it easier.</p>
           <p id="ar-availability" class="field-help"></p>
 
           <figure class="holo-preview" aria-label="Preview: virtual tapes wrap the ankle and calf, a vertical tape rises to the cuff point">
@@ -245,6 +246,11 @@
               <h3>AR girth tape</h3>
               <p>Tap the cuff point, then walk slowly around the leg. Virtual tapes at the ankle and calf turn green as each side is captured, and the ankle, calf and length are measured from the scan. Scan twice: values are used once two scans agree within 1 cm.</p>
               <button type="button" class="outline" data-ar="girth">Start AR girth tape</button>
+            </article>
+            <article class="ar-tool" id="ar-truedepth-tool">
+              <h3>Face ID depth scan <small>(test)</small></h3>
+              <p>For iPhones without LiDAR. A helper holds the phone 40 cm from the shin, screen facing the leg, and the phone talks them through two captures: front and outer side. The ankle and calf are measured from the depth. Measure the length with a tape.</p>
+              <button type="button" class="outline" data-ar="truedepth">Start Face ID depth scan</button>
             </article>
           </div>
           <p id="ar-market-note" class="field-help"></p>

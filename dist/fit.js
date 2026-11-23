@@ -50,7 +50,7 @@ function defaultMarket(timeZone = '', search = '') {
 }
 
 const marketRules = market => markets[market] ?? markets.au;
-const arTools = market => marketRules(market).imageGirth ? ['guide','length','girth'] : ['guide','length'];
+const arTools = market => marketRules(market).imageGirth ? ['guide','length','girth','truedepth'] : ['guide','length'];
 
 // Fields a measurement source may fill in a market: tape (typed or AR-guided) fills all three;
 // camera, AR ruler and scan results fill only the length where image girths are not offered.
@@ -399,8 +399,8 @@ function start() {
     $('result').hidden = true;
   }
 
-  const sourceLabels = {tape:'Tape', guided:'Tape (AR-guided)', video:'Video estimate', scan:'LiDAR scan', ar:'AR length ruler'};
-  const isEstimate = source => source === 'video' || source === 'scan' || source === 'ar';
+  const sourceLabels = {tape:'Tape', guided:'Tape (AR-guided)', video:'Video estimate', scan:'LiDAR scan', ar:'AR length ruler', depth:'Face ID depth (test)'};
+  const isEstimate = source => source === 'video' || source === 'scan' || source === 'ar' || source === 'depth';
 
   function clearEstimates(legs = [state.leg]) {
     for (const leg of legs) {
@@ -479,6 +479,7 @@ function start() {
       button.hidden = !rules.modes.includes(button.dataset.goto);
     }
     $('ar-girth-tool').hidden = !arTools(state.market).includes('girth');
+    $('ar-truedepth-tool').hidden = !arTools(state.market).includes('truedepth');
     $('market-note').textContent = rules.imageGirth
       ? 'All measuring methods are available: tape, AR tape, video and LiDAR scan.'
       : 'In Australia the ankle and calf are measured with a tape: typed in, or placed with the AR tape guide in the iPhone app. The AR length ruler can measure the length.';
@@ -553,7 +554,7 @@ function start() {
     const videoFields = fields.filter(field => isEstimate(state.sources[state.leg][field]));
     const kinds = new Set(videoFields.map(field => state.sources[state.leg][field]));
     const scanned = kinds.has('scan');
-    const estimateWord = scanned ? 'scan' : kinds.has('video') ? 'video' : 'AR length';
+    const estimateWord = scanned ? 'scan' : kinds.has('video') ? 'video' : kinds.has('depth') ? 'Face ID depth' : 'AR length';
     const fit = fitStocking(values, videoFields);
     const heading = document.createElement('h3');
     const note = document.createElement('p');
@@ -571,7 +572,9 @@ function start() {
           ? 'Experimental LiDAR estimate from two scans that agreed within 1 cm. Confirm with tape until the scan is validated.'
           : kinds.has('video')
             ? 'Experimental video estimate. Confirm with tape before using it to select a garment.'
-            : 'Length from the AR length ruler, which is experimental. Confirm it with a tape until the ruler is validated.')
+            : kinds.has('depth')
+              ? 'Face ID depth scan (test mode). Confirm the ankle and calf with a tape before using them to select a garment.'
+              : 'Length from the AR length ruler, which is experimental. Confirm it with a tape until the ruler is validated.')
         : 'Matched to the provisional pilot chart. Use the actual stocking’s chart for a purchase.';
     }
     const parts = [heading, note];
@@ -955,10 +958,11 @@ function start() {
 
   // ---------- AR tape (iPhone app) ----------
   const arReady = Boolean(app && window.compressionFitApp?.ar);
+  const trueDepthReady = Boolean(app && window.compressionFitApp?.truedepth);
   $('ar-availability').textContent = arReady
     ? 'Use the leg selected under Check a stocking size.'
     : 'These tools run in the Compression Fit iPhone app, which is in development, on an iPhone 12 Pro or later Pro model. On other phones, use Measure with tape.';
-  const arNames = {guide:'AR tape guide', length:'AR length ruler', girth:'AR girth tape'};
+  const arNames = {guide:'AR tape guide', length:'AR length ruler', girth:'AR girth tape', truedepth:'Face ID depth scan'};
 
   function arStatus(message) {
     $('ar-status').textContent = message;
@@ -979,8 +983,10 @@ function start() {
       arStatus('The ' + arNames[tool] + ' is not available in ' + marketRules(state.market).label + '.');
       return;
     }
-    if (!arReady) {
-      arStatus('Open this page in the Compression Fit iPhone app on an iPhone 12 Pro or later Pro model to use the ' + arNames[tool] + '.');
+    if (tool === 'truedepth' ? !trueDepthReady : !arReady) {
+      arStatus(tool === 'truedepth'
+        ? 'Open this page in the Compression Fit iPhone app on an iPhone with Face ID to use the Face ID depth scan.'
+        : 'Open this page in the Compression Fit iPhone app on an iPhone 12 Pro or later Pro model to use the ' + arNames[tool] + '.');
       return;
     }
     arStatus('Opening the ' + arNames[tool] + '…');
@@ -1001,6 +1007,33 @@ function start() {
       }
       lastScanJson = JSON.stringify(result.scan);
       receiveScan(result.scan);
+      return;
+    }
+    if (result.tool === 'truedepth') {
+      if (!marketRules(state.market).imageGirth) {
+        arStatus('The Face ID depth scan is not available in Australia. Use the AR tape guide with a real tape.');
+        return;
+      }
+      let measured;
+      try {
+        measured = measureTrueDepth(result.captures || []);
+      } catch (error) {
+        arStatus('The depth captures could not be measured. ' + error.message);
+        return;
+      }
+      if (!measured.plausible || !inRange(measured.ankle, 10, 65) || !inRange(measured.calf, 15, 100) || measured.calf <= measured.ankle) {
+        arStatus('The two captures did not agree well enough (ankle ' + measured.ankle + ' cm, calf ' + measured.calf + ' cm). Retake both from the same height and distance, or measure with a tape.');
+        return;
+      }
+      const record = state.records[state.leg], sources = state.sources[state.leg];
+      for (const field of ['ankle', 'calf']) {
+        if (sources[field] === 'tape' || sources[field] === 'guided') continue;
+        record[field] = measured[field].toFixed(1);
+        sources[field] = 'depth';
+      }
+      updateRecord();
+      arStatus('Face ID depth scan (test): ankle ' + measured.ankle.toFixed(1) + ' cm, calf ' + measured.calf.toFixed(1) +
+        ' cm, entered in Check a stocking size unless you had typed a tape value. Measure the length with a tape. Confirm with a tape until this mode is validated.');
       return;
     }
     const length = Number(result.length);

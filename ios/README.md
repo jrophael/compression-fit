@@ -22,7 +22,7 @@ open CompressionFit.xcodeproj
 
 In Xcode, select the CompressionFit target. Under **Signing & Capabilities**, choose your team, and change the bundle ID if needed. Then run on a connected LiDAR iPhone.
 
-Without XcodeGen: create a new iOS App project in Xcode (SwiftUI, Swift) named CompressionFit. Delete its generated `ContentView.swift` and app file, and add the seven Swift files in `Sources/`. Add the `NSCameraUsageDescription` key and the `arkit` required device capability to the Info settings.
+Without XcodeGen: create a new iOS App project in Xcode (SwiftUI, Swift) named CompressionFit. Delete its generated `ContentView.swift` and app file, and add the eight Swift files in `Sources/`. Add the `NSCameraUsageDescription` key and the `arkit` required device capability to the Info settings.
 
 ## How it works
 
@@ -49,6 +49,10 @@ The page's **AR tape** mode posts `{action: 'arTape', tool, leg, market}`.
   4. Returns `{tool: 'guide', leg, ankle, calf, length, guideHeights, placementChecks}`. Heights and errors are in centimetres.
   The camera and LiDAR only locate the floor, measure heights and draw the guides. They never measure a circumference, so this tool is the Australian route.
 - **AR girth tape** (`tool: 'girth'`) is `ScanViewController`, now drawing two segmented virtual tapes at the ankle and calf band heights. Each 10° segment turns green when that sector has points (`PointAccumulator.bandCoverages()`), and the rings move to the leg centre as it is found. The scan returns to `window.receiveArTape({tool: 'girth', scan})`. `WebViewController` refuses it when `market` is `au`, as does the page.
+
+**Face ID depth scan (test)** (`TrueDepthScanViewController.swift`, `tool: 'truedepth'`): front TrueDepth camera, `AVCaptureDepthDataOutput` with filtering, the largest Float32 depth format. Because the screen faces the leg, guidance is spoken (`AVSpeechSynthesizer`) with haptics and a large distance readout: it waits until the nearest surface in the centre of the view is 28–50 cm away and the phone is still (gyro) for 1 s, then averages 12 frames, unprojects every second pixel with the camera intrinsics (scaled to the depth map) and sends `{tool: 'truedepth', leg, captures: [{name: 'front', points}, {name: 'side', points}]}` (camera-frame Int16, 0.25 mm units, base64). Measurement happens in the page. Refused when `market` is `au`. The bootstrap reports `truedepth: true` on Face ID iPhones, so the page offers it there even without LiDAR.
+
+On a device, check: the intrinsics scaling (compare a known object's width), that the averaged map is not blurred by small movements, the spoken guidance timing, and accuracy against a tape on 10 legs before showing it to patients.
 
 **Holographic look** (`Hologram.swift`, visual only, nothing in it measures):
 

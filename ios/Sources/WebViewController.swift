@@ -21,7 +21,7 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKUIDel
 
         let lidarAvailable = ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
         let bootstrap = """
-        window.compressionFitApp = {lidar: \(lidarAvailable ? "true" : "false"), ar: \(lidarAvailable ? "true" : "false"), version: 2};
+        window.compressionFitApp = {lidar: \(lidarAvailable ? "true" : "false"), ar: \(lidarAvailable ? "true" : "false"), truedepth: \(TrueDepthScanViewController.isAvailable ? "true" : "false"), version: 3};
         window.print = function () { window.webkit.messageHandlers.compressionFit.postMessage({action: 'print'}); };
         """
         configuration.userContentController.addUserScript(
@@ -91,6 +91,10 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKUIDel
     /// AR tape tools. In Australia the girth tape is refused here as well as hidden in the page:
     /// ankle and calf circumferences there come from a physical tape only.
     private func startArTape(tool: String, leg: String, market: String) {
+        if tool == "truedepth" {
+            startTrueDepth(leg: leg, market: market)
+            return
+        }
         guard hasLiDAR else {
             notifyArCancelled("The AR tape needs the LiDAR sensor of an iPhone 12 Pro or later Pro model. Use Measure with tape instead.")
             return
@@ -121,6 +125,29 @@ final class WebViewController: UIViewController, WKScriptMessageHandler, WKUIDel
         default:
             notifyArCancelled("This AR tool is not available in this version of the app.")
         }
+    }
+
+    /// Face ID depth scan (test). Works on any Face ID iPhone; refused in Australia.
+    private func startTrueDepth(leg: String, market: String) {
+        guard market != "au" else {
+            notifyArCancelled("The Face ID depth scan is not available in Australia. Use the AR tape guide with a real tape.")
+            return
+        }
+        guard TrueDepthScanViewController.isAvailable else {
+            notifyArCancelled("This iPhone has no Face ID camera. Use Measure with tape.")
+            return
+        }
+        let controller = TrueDepthScanViewController(leg: leg)
+        controller.modalPresentationStyle = .fullScreen
+        controller.onComplete = { [weak self, weak controller] json in
+            controller?.dismiss(animated: true)
+            self?.webView.evaluateJavaScript("window.receiveArTape(\(json));")
+        }
+        controller.onCancel = { [weak self, weak controller] message in
+            controller?.dismiss(animated: true)
+            self?.notifyArCancelled(message)
+        }
+        present(controller, animated: true)
     }
 
     private func jsString(_ message: String) -> String {

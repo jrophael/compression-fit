@@ -52,6 +52,8 @@ The reason is patent clearance: in Australia, ready-made garment selection from 
 2. **AR length ruler:** the first part only. Fills the length.
 3. **AR girth tape** (not in Australia): the LiDAR scanner with two virtual tapes at the ankle and calf that turn green sector by sector as each side is captured. Results go through the same two-scan agreement as LiDAR scan mode.
 
+4. **Face ID depth scan (test, not in Australia):** for iPhones without LiDAR. Uses the front TrueDepth camera (structured light) on any Face ID iPhone. A helper holds the phone about 40 cm from the bare shin, screen facing the leg, guided by voice and vibration (they cannot see the screen): one capture from the front, one from the outer side, each the average of 12 steady depth frames. `dist/truedepth.js` measures them: leg axis by PCA; each 1 cm slice measured as an angle from the camera (immune to flying pixels at the edges); widths solved for an oval section from the slice's distance and the 80° edge-visibility limit, using the other view's depth; ankle = narrowest, calf = widest ≥ 8 cm above; circumference from the two diameters (Ramanujan). Fills ankle and calf (labelled *Face ID depth (test)*), not length. On synthetic legs with noise, flying pixels, tilt, a floor in view and misaligned captures it is within 0.3 cm (`tests/truedepth.test.js`); it has not been tested on a real leg.
+
 The page calls the app with `{action: 'arTape', tool, leg, market}` and receives `window.receiveArTape(result)` (`{tool: 'guide'|'length', leg, ankle?, calf?, length, guideHeights?, placementChecks?}` or `{tool: 'girth', scan}`) or `window.arTapeCancelled(message)`. The AR length is treated as an estimate, so lengths within 1 cm of a cutoff prompt a tape check.
 
 ## Stocking-fit preview

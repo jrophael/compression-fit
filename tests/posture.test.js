@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('assert');
-const P = require('../dist/posture/posture.js');
+const P = require('../dist/sleepfit/posture.js');
 
 const near = (a, b, tol, msg) => assert(Math.abs(a - b) <= tol, `${msg}: got ${a.toFixed(2)}, expected ${b} ± ${tol}`);
 const DEG = 180 / Math.PI;
@@ -98,5 +98,44 @@ for (const c of cases) {
   near(r.headAngle, -10, 2.6, 'head on the right');
 }
 assert.throws(() => P.analyseDepth([[0, 0, 0]], {camera: [0, 0, 1]}), /Not enough/);
+
+// ---------- Plausibility, pillow advice and best setup ----------
+{
+  const bad = P.analyseLandmarks({occiput: [225, 100], c7: [330, 400], waist: [600, 415], sacrum: [880, 400], mattressA: [150, 600], mattressB: [1000, 600]});
+  assert(P.plausibility(bad).some(m => /sharp bend/.test(m)), 'mis-tapped head is caught');
+  const good = P.analyseLandmarks(photo({headDeg: -8}));
+  assert.deepStrictEqual(P.plausibility(good), []);
+  assert(P.plausibility({headAngle: 0, waistPct: 20, tilt: 0, neckLength: 20, trunkLength: 50}).some(m => /waist point/.test(m)));
+  assert(P.plausibility({headAngle: 0, waistPct: 0, tilt: 30, neckLength: 20, trunkLength: 50}).some(m => /mattress points/.test(m)));
+}
+{
+  const cm = (headAngle, change) => ({units: 'cm', headAngle, pillowChangeCm: change});
+  let a = P.pillowAdvice(cm(-10, 3.5), 2);
+  assert.strictEqual(a.action, 'add'); assert.strictEqual(a.change, 2); assert.strictEqual(a.layers, 4);
+  assert(/Add 2 layers \(2 → 4\)/.test(a.text));
+  a = P.pillowAdvice(cm(9, -1.4), 3);
+  assert.strictEqual(a.action, 'remove'); assert.strictEqual(a.layers, 2); assert(/Remove 1 layer \(3 → 2\)/.test(a.text));
+  a = P.pillowAdvice(cm(2, -0.6), 3);
+  assert.strictEqual(a.action, 'keep'); assert.strictEqual(a.layers, 3);
+  a = P.pillowAdvice(cm(-12, 6), 3);
+  assert.strictEqual(a.layers, 4); assert(/highest setting/.test(a.text));
+  a = P.pillowAdvice(cm(-12, 6), 4);
+  assert.strictEqual(a.action, 'limit'); assert(/higher pillow may suit/.test(a.text));
+  a = P.pillowAdvice(cm(10, -4), 0);
+  assert.strictEqual(a.action, 'limit'); assert(/lower or thinner pillow/.test(a.text));
+  a = P.pillowAdvice({units: 'px', headAngle: -9}, 1);
+  assert.strictEqual(a.change, 1); assert.strictEqual(a.layers, 2);
+  a = P.pillowAdvice({units: 'px', headAngle: 9}, 1);
+  assert.strictEqual(a.layers, 0);
+  assert.strictEqual(P.headLabel(-8), 'head drops: pillow low');
+  assert.strictEqual(P.headLabel(8), 'head raised: pillow high');
+  assert.strictEqual(P.headLabel(1), 'lined up');
+}
+{
+  assert.strictEqual(P.bestSetup([]), null);
+  const recs = [{label: 'A', headAngle: -9, comfort: 5}, {label: 'B', headAngle: 1, comfort: 7}, {label: 'C', headAngle: -3, comfort: 8}, {label: 'D', headAngle: 0.5, comfort: 4}];
+  assert.strictEqual(P.bestSetup(recs).label, 'B', 'comfort within 1 of best, straightest head');
+  assert.strictEqual(P.bestSetup([{label: 'X', headAngle: 12, comfort: 9}, {label: 'Y', headAngle: 0, comfort: 6}]).label, 'X', 'comfort leads');
+}
 
 console.log('posture scan ok');

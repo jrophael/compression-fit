@@ -34,12 +34,12 @@ jobs:
           node tests/preview.test.js
           node tests/truedepth.test.js
           node tests/profile.test.js
-          node --check dist/posture/posture.js
-          node --check dist/posture/posture-ui.js
+          node --check dist/sleepfit/posture.js
+          node --check dist/sleepfit/sleepfit-ui.js
           node tests/posture.test.js
           node -e "const {fitStocking}=require('./dist/fit.js'); const r=fitStocking({ankle:20,calf:43,length:36}); if (r.band!=='Small'||r.cut!=='Wide'||r.length!=='Short') { console.error(r); process.exit(1) }"
       - name: Version asset URLs so browsers load updates at once
-        run: sed -i "s/__VERSION__/${GITHUB_SHA::8}/g" dist/index.html dist/posture/index.html
+        run: sed -i "s/__VERSION__/${GITHUB_SHA::8}/g" dist/index.html dist/sleepfit/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

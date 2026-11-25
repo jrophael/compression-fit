@@ -185,6 +185,58 @@
     return out;
   }
 
+
+  // ---------- Plausibility check (catches mis-tapped landmarks) ----------
+  const LIMITS = {head: 35, waistPct: 15, tilt: 25};
+  function plausibility(r) {
+    const problems = [];
+    if (Math.abs(r.headAngle) > LIMITS.head) problems.push('The head and neck points make a very sharp bend (' + Math.round(Math.abs(r.headAngle)) + '°). Check the back of the head and the base of the neck.');
+    if (Math.abs(r.waistPct) > LIMITS.waistPct) problems.push('The waist point is far from the line between neck and pelvis. Check the waist point.');
+    if (Math.abs(r.tilt) > LIMITS.tilt) problems.push('The spine is at a steep angle to the mattress. Check the two mattress points.');
+    if (r.neckLength < 0.15 * r.trunkLength) problems.push('The head point is very close to the base of the neck. Check both points.');
+    return problems;
+  }
+
+  // ---------- Advice for an adjustable pillow with removable layers ----------
+  // Provisional product specification: layers of 1.5 cm, up to 4 removable layers.
+  const PILLOW = {layerCm: 1.5, maxLayers: 4};
+  function pillowAdvice(r, currentLayers, spec) {
+    const S = Object.assign({}, PILLOW, spec);
+    const now = Math.max(0, Math.min(S.maxLayers, Math.round(currentLayers || 0)));
+    const off = Math.abs(r.headAngle) > THRESHOLDS.head;
+    if (!off) return {action: 'keep', change: 0, layers: now, text: 'Keep ' + now + ' layer' + (now === 1 ? '' : 's') + '. Your head and neck line up with your spine.'};
+    const up = r.headAngle < 0; // head drops: pillow too low, add layers
+    let change = r.units === 'cm' && Number.isFinite(r.pillowChangeCm) ? Math.round(Math.abs(r.pillowChangeCm) / S.layerCm) : 1;
+    change = Math.max(1, change);
+    const target = up ? Math.min(S.maxLayers, now + change) : Math.max(0, now - change);
+    const actual = Math.abs(target - now);
+    let text;
+    if (actual === 0) {
+      text = up ? 'Your pillow is already at its highest setting and still looks too low. A higher pillow may suit you.'
+                : 'Your pillow is already at its lowest setting and still looks too high. A lower or thinner pillow may suit you.';
+    } else {
+      text = (up ? 'Add ' : 'Remove ') + actual + ' layer' + (actual === 1 ? '' : 's') + ' (' + now + ' → ' + target + '), then scan again to check.';
+      if (actual < change) text += up ? ' That is the highest setting; if your head still drops, a higher pillow may suit you.' : ' That is the lowest setting; if your head is still raised, a lower pillow may suit you.';
+    }
+    return {action: actual === 0 ? 'limit' : (up ? 'add' : 'remove'), change: up ? actual : -actual, layers: target, text};
+  }
+
+  // ---------- Best setup so far: aligned and comfortable ----------
+  // Among setups whose comfort is within 1 point of the most comfortable, pick the one
+  // whose head angle is closest to straight. Comfort leads; alignment breaks ties.
+  function bestSetup(records) {
+    if (!records.length) return null;
+    const top = Math.max(...records.map(r => r.comfort));
+    const pool = records.filter(r => r.comfort >= top - 1);
+    return pool.reduce((b, r) => (Math.abs(r.headAngle) < Math.abs(b.headAngle) ? r : b));
+  }
+
+  function headLabel(angle) {
+    if (angle < -THRESHOLDS.head) return 'head drops: pillow low';
+    if (angle > THRESHOLDS.head) return 'head raised: pillow high';
+    return 'lined up';
+  }
+
   // ---------- Synthetic side-lying body (for the demo and tests) ----------
   // params: {headDropDeg, waistSagCm, hipSinkCm, noiseMm, seed}
   function syntheticScan(params) {
@@ -222,7 +274,7 @@
     return {points: pts, camera: [0.45, 0.30, 1.4], headSide: 'left'};
   }
 
-  const api = {THRESHOLDS, measures, analyseLandmarks, analyseDepth, spineProfile, landmarksFromProfile, interpret, syntheticScan, mattressHeight};
+  const api = {THRESHOLDS, LIMITS, PILLOW, plausibility, pillowAdvice, bestSetup, headLabel, measures, analyseLandmarks, analyseDepth, spineProfile, landmarksFromProfile, interpret, syntheticScan, mattressHeight};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Posture = api;
 })(typeof window !== 'undefined' ? window : globalThis);

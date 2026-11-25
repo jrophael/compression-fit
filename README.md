@@ -110,3 +110,15 @@ Five questions (main reason, a safety screen, mobility, difficulty putting stock
 - **urgent**: possible clot, see a doctor today.
 
 Every retail answer is a below-knee, 15–20 mmHg stocking, with an evidence grade and its references. The rules apply in order and the safety screens come first. The size result shows the profile, and the hologram preview shades the stocking to match it (firmest at the ankle or at the calf). The rules and the evidence table are in the doc "Compression profile selector: logic and evidence". Tests: `tests/profile.test.js`.
+
+## SleepFit (pillow fitting prototype, v0.2)
+
+`dist/sleepfit/` (the old `/posture/` link redirects here). It merges the SleepFit v0.1 journey (prepare → baseline photo → try a change → compare → fit profile) with the posture engine in `posture.js`:
+
+- **Signed measures**, from points marked on a rear photo or from an iPhone depth scan: head-and-neck angle (minus = head drops, so the pillow is too low), waist offset (sag or bow) and hip-vs-shoulder tilt. With an optional A4 sheet on the mattress, results are in centimetres.
+- **Layer advice for an adjustable pillow.** The provisional specification is 1.5 cm layers, up to 4 (`PILLOW` in `posture.js`). The advice is to add or remove *n* layers and then re-scan, with limits at the lowest and highest settings.
+- **Best setup so far**: the most comfortable setup (within one point), with the straightest head as the tie-break.
+- **Plausibility checks** catch mis-tapped points (`LIMITS`).
+- **Marking**: points can be dragged and placed with the keyboard. There's a clear hint when Record is disabled, a route back from the profile, and a CSV export that guards text against spreadsheet formulas.
+
+Everything stays on the device. Tests: `tests/posture.test.js`.

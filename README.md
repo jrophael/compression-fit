@@ -111,12 +111,16 @@ Five questions (main reason, a safety screen, mobility, difficulty putting stock
 
 Every retail answer is a below-knee, 15–20 mmHg stocking, with an evidence grade and its references. The rules apply in order and the safety screens come first. The size result shows the profile, and the hologram preview shades the stocking to match it (firmest at the ankle or at the calf). The rules and the evidence table are in the doc "Compression profile selector: logic and evidence". Tests: `tests/profile.test.js`.
 
-## SleepFit (pillow fitting prototype, v0.2)
+## SleepFit (pillow fitting prototype, v0.3.1)
 
-`dist/sleepfit/` (the old `/posture/` link redirects here). It merges the SleepFit v0.1 journey (prepare → baseline photo → try a change → compare → fit profile) with the posture engine in `posture.js`:
+`dist/sleepfit/` (the old `/posture/` link redirects here). It combines the SleepFit journey (prepare → baseline photo → try a change → compare → fit profile) with the posture engine in `posture.js`:
 
-- **Signed measures**, from points marked on a rear photo or from an iPhone depth scan: head-and-neck angle (minus = head drops, so the pillow is too low), waist offset (sag or bow) and hip-vs-shoulder tilt. With an optional A4 sheet on the mattress, results are in centimetres.
-- **Layer advice for an adjustable pillow.** The provisional specification is 1.5 cm layers, up to 4 (`PILLOW` in `posture.js`). The advice is to add or remove *n* layers and then re-scan, with limits at the lowest and highest settings.
+- **Side sleepers**: signed measures from points marked on a rear photo (back of head, base of neck, waist, pelvis, two mattress points, optional A4 sheet) or from an optional side-only iPhone depth scan: head-and-neck angle (minus = head drops, so the pillow is too low), waist offset (sag or bow) and hip-vs-shoulder tilt. With the A4 sheet, results are in centimetres.
+- **Back sleepers** (`analyseBack`): a side-on photo marking ear, outer eye, shoulder, hip and two mattress points. The ear–eye orientation is a visual proxy only, so the advice is driven by how the head feels (tucked or tipped back), not by a target angle.
+- **Combination sleepers**: both positions are measured. The next setup follows the side measurement; if the two positions point in opposite directions, the layers stay the same and comfort decides.
+- **Layer advice for an adjustable pillow** (`fitAdvice`): one layer at a time, then re-check. The provisional specification is 1.5 cm layers, up to 4 (`PILLOW` in `posture.js`). An optional loaded-height field records the pillow's measured height under the head.
+- **Comfort diary**: seven nights, stored on the device (localStorage), alongside photo thumbnails for comparing setups.
+- On-screen wording describes visible orientation (head appears raised or lowered); the signed numbers are kept in the CSV export.
 - **Best setup so far**: the most comfortable setup (within one point), with the straightest head as the tie-break.
 - **Plausibility checks** catch mis-tapped points (`LIMITS`).
 - **Marking**: points can be dragged and placed with the keyboard. There's a clear hint when Record is disabled, a route back from the profile, and a CSV export that guards text against spreadsheet formulas.

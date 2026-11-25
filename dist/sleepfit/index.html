@@ -11,14 +11,14 @@
   <script defer src="sleepfit-ui.js?v=__VERSION__"></script>
 </head>
 <body>
-<header><div class="brand">sleep<span>fit</span>.</div><div class="badge">Research prototype · v0.2</div></header>
+<header><div class="brand">sleep<span>fit</span>.</div><div class="badge">Consumer fitting beta · v0.3.1</div></header>
 <main>
   <section class="hero">
     <div>
       <div class="kicker">Your personal fitting studio</div>
-      <h1>Find the pillow height that fits you.</h1>
-      <p>Photograph how you actually lie on your own bed, see whether your head drops or is pushed up, adjust your pillow a layer at a time, and keep the setup that lines up and feels best.</p>
-      <div class="actions"><button id="begin">Start a fitting</button><button class="secondary" id="demo">Explore a demo</button></div>
+      <h1>Your pillow fitted to your body, your mattress and your sleeping position.</h1>
+      <p>Compare pillow heights on your own bed. Choose side, back or combination sleeping, adjust one layer at a time, and find the setup that feels best over several nights.</p>
+      <div class="actions"><button id="begin">Start a fitting</button><button class="secondary" id="demo">Explore a demo</button><button class="secondary" id="openDiary">My comfort diary</button></div>
     </div>
     <svg viewBox="0 0 350 220" role="img" aria-label="Illustration of a person lying on their side on a layered pillow">
       <rect x="12" y="175" width="326" height="28" rx="12" fill="#a7c8c3"/>
@@ -34,28 +34,28 @@
 
   <section id="prepare" class="card hidden">
     <h2>Prepare your fitting</h2>
-    <p class="sub">Use your usual bed and pillow. Someone will need to take a photograph from behind you.</p>
+    <p class="sub">Use your usual bed and pillow. Ask someone to take a photograph from behind you for side sleeping, or directly from the side for back sleeping.</p>
     <div class="grid">
       <div>
-        <label for="side">Usual sleeping side</label>
-        <select id="side"><option>Left side</option><option>Right side</option></select>
+        <label for="side">Usual sleeping position</label>
+        <select id="side"><option>Left side</option><option>Right side</option><option>Back</option><option>Combination</option></select>
         <label for="pillowType">Your pillow</label>
         <select id="pillowType"><option value="adjustable">SleepFit adjustable pillow (removable layers)</option><option value="other">Another pillow</option></select>
         <div id="layersWrap"><label for="layers">Layers in the pillow now</label>
           <select id="layers"><option>0</option><option>1</option><option selected>2</option><option>3</option><option>4</option></select>
-          <p class="hint">Each removable layer is about 1.5 cm (provisional specification).</p></div>
-        <label for="setup">Describe this setup</label>
+          <p class="hint">Concept specification: removable layers about 1.5 cm unloaded. Effective height under your head varies with material and mattress. Adjust one layer at a time.</p></div>
+        <label for="mattress">Mattress feel</label><select id="mattress"><option>Medium</option><option>Soft</option><option>Firm</option><option>Unsure</option></select><label for="setup">Describe this setup</label>
         <input id="setup" type="text" placeholder="e.g. memory foam, 2 layers">
         <label for="comfort">How comfortable is it? <output id="comfortout">5 / 10</output></label>
         <input id="comfort" type="range" min="0" max="10" value="5">
       </div>
       <div class="checklist">
         <h3>Before the photo</h3>
-        <label><input type="checkbox" required> Thin, close-fitting top or bare back; duvet off your back.</label>
+        <label><input type="checkbox" required> Thin, close-fitting top; remove duvet from the area being photographed.</label>
         <label><input type="checkbox" required> Lie as you normally sleep and stay still for about 10 minutes so the pillow and mattress settle.</label>
-        <label><input type="checkbox" required> The photographer stands behind you, phone level with your back, showing the top of your head down to your hips and the mattress surface.</label>
-        <label><input type="checkbox" required> Keep the same side, camera position and arm position for every comparison.</label>
-        <label class="optional"><input type="checkbox" id="useA4"> Optional: an A4 sheet lies flat on the mattress just behind your back, long side along your body (gives centimetres and layer counts).</label>
+        <label><input type="checkbox" required> Keep the phone level, square to your body, showing head, shoulders, hips and mattress edge. Avoid wide-angle lenses.</label>
+        <label><input type="checkbox" required> Keep the same position, camera distance, camera height and arm position for each like-for-like comparison.</label>
+        <label class="optional"><input type="checkbox" id="useA4"> Optional: hold an A4 sheet in the same vertical plane as the visible landmarks, long edge parallel to the bed. Gives only an approximate scale.</label>
       </div>
     </div>
     <p id="prepareError" class="error" role="alert"></p>
@@ -65,11 +65,11 @@
 
   <section id="capture" class="card hidden">
     <h2 id="captureTitle">Baseline photo</h2>
-    <p id="captureHelp" class="sub">Choose or take the photo, then mark the points in order. Drag a point to fine-tune it.</p>
+    <label for="pose">Position for this photo</label><select id="pose"><option value="side">Side</option><option value="back">Back</option></select><p id="captureHelp" class="sub">Choose or take the photo, then mark the points in order. Drag a point to fine-tune it.</p>
     <div class="grid wide">
       <div>
         <label class="file"><input type="file" accept="image/*" capture="environment" id="photo"><span>Choose or take a photo</span></label>
-        <p class="sub" id="fileStatus">No photograph selected.</p>
+        <p class="note" id="captureGuide"></p><p class="sub" id="fileStatus">No photograph selected.</p>
         <div class="canvas-wrap"><canvas id="canvas" width="800" height="450" tabindex="0" aria-describedby="keyHelp" aria-label="Photo for marking points. Tap to place; drag to adjust."></canvas></div>
         <p id="keyHelp" class="hint">Keyboard: arrow keys move the cross (hold Shift for bigger steps), Enter places the next point, Backspace undoes.</p>
         <div class="actions"><button id="undo" class="secondary">Undo</button><button id="clear" class="secondary">Clear all</button><button id="skipA4" class="secondary hidden">No A4 sheet: skip</button></div>
@@ -84,7 +84,7 @@
           <select id="layersNow"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
         <label for="trialComfort">Comfort with this setup <output id="trialOut">5 / 10</output></label>
         <input id="trialComfort" type="range" min="0" max="10" value="5">
-        <label for="change">Setup notes</label>
+        <div id="backFeelWrap" class="hidden"><label for="backFeel">How does your head feel?</label><select id="backFeel"><option value="neutral">Comfortable / unsure</option><option value="tucked">Chin pushed towards chest</option><option value="extended">Head feels tipped back</option></select></div><label for="loaded">Approximate loaded pillow height (cm, optional)</label><input id="loaded" type="number" min="0" max="30" step="0.5" placeholder="Measure beside head, not unloaded"><label for="change">Setup notes</label>
         <input type="text" id="change" placeholder="e.g. removed one layer">
         <p id="recordHint" class="hint" aria-live="polite"></p>
         <p id="captureError" class="error" role="alert"></p>
@@ -102,15 +102,16 @@
 
   <section id="profile" class="card hidden">
     <h2>Your pillow fit profile</h2>
-    <div id="profileContent"></div>
+    <div id="profileContent"></div><section id="diary" class="note"></section>
     <div class="actions"><button id="download">Download profile (CSV)</button><button id="print" class="secondary">Print</button><button id="toCompare" class="secondary">Back to comparison</button><button id="another2" class="secondary">Try another setup</button><button id="restart" class="secondary">Start over</button></div>
   </section>
 
   <section class="card info">
     <h3>Designed for comparison, not diagnosis</h3>
-    <p class="sub">SleepFit measures the outline of your back from points you mark on a photo (or from the iPhone 3D scan). It does not see bone position, diagnose a condition, or prescribe a mattress. Alignment targets are provisional and not yet validated. See a doctor or physiotherapist for persistent neck or back pain, numbness, tingling or pain that wakes you.</p>
+    <p class="sub">SleepFit compares visible body landmarks and head orientation from photos. Side-only iPhone 3D scan is optional. It does not see bone position, diagnose a condition, or prescribe a mattress. Alignment targets are provisional and not yet validated. See a doctor or physiotherapist for persistent neck or back pain, numbness, tingling or pain that wakes you.</p>
   </section>
-</main>
-<footer>SleepFit · Research prototype v0.2 · Photos and results stay on your device and are cleared when you close or refresh the page.</footer>
+<section class="card info"><h3>Modular pillow concept</h3><p>Removable full-width height layers, a supportive base and an optional independently adjustable neck insert. Prototype specification only; effective loaded height depends on compression. For combination sleepers, test both positions and prefer the most comfortable compromise.</p><p class="hint">Evidence-informed design: <a href="https://pubmed.ncbi.nlm.nih.gov/33895703/">Pillow designs systematic review</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5012320/">Pillow height biomechanics</a>. Neither establishes an individual ideal angle.</p></section></main>
+<footer>SleepFit · Consumer fitting beta v0.3.1 · Photos are kept in this session only. The optional comfort diary is saved locally on this device.</footer>
 </body>
 </html>
+

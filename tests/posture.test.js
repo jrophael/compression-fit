@@ -139,3 +139,17 @@ assert.throws(() => P.analyseDepth([[0, 0, 0]], {camera: [0, 0, 1]}), /Not enoug
 }
 
 console.log('posture scan ok');
+
+{
+  const L={ear:[100,100],eye:[110,50],shoulder:[200,150],hip:[400,150],mattressA:[20,200],mattressB:[500,200]};
+  const r=P.analyseBack(L);
+  near(r.headAngle,Math.atan2(10,50)*DEG,.001,'back orientation');
+  const mirrored=Object.fromEntries(Object.entries(L).map(([k,[x,y]])=>[k,[600-x,y]]));
+  near(P.analyseBack(mirrored).headAngle,r.headAngle,.001,'mirrored back orientation');
+  assert.strictEqual(P.fitAdvice({...r,feel:'tucked'},2).layers,1);
+  assert.strictEqual(P.fitAdvice({...r,feel:'extended'},2).layers,3);
+  assert.strictEqual(P.fitAdvice({...r,feel:'neutral'},2).layers,2);
+  assert.strictEqual(P.fitAdvice({headAngle:-25,pose:'side'},1).change,1);
+  assert.throws(()=>P.analyseBack({...L,eye:L.ear}),/Check/);
+}
+

@@ -72,6 +72,36 @@
     return res;
   }
 
+  // Back-sleeping: visible head orientation, not cervical anatomy. Mattress-relative
+  // ear-to-eye angle is positive towards feet (chin-tuck proxy); no optimum asserted.
+  function analyseBack(L) {
+    for (const k of ['ear','eye','shoulder','hip','mattressA','mattressB'])
+      if (!Array.isArray(L[k]) || !L[k].every(Number.isFinite)) throw new Error('Missing point: '+k);
+    const bed = sub(L.mattressB,L.mattressA);
+    if (len(bed)<20) throw new Error('Separate the mattress marks.');
+    let m=unit(bed), up=[-m[1],m[0]];
+    if(dot(sub(L.shoulder,L.mattressA),up)<0) up=scale(up,-1);
+    if(dot(sub(L.hip,L.shoulder),m)<0) m=scale(m,-1);
+    const v=sub(L.eye,L.ear);
+    if(len(v)<10 || dot(v,up)<=0 || Math.abs(dot(sub(L.hip,L.shoulder),m))<30)
+      throw new Error('Check the ear, outer eye, shoulder and hip marks.');
+    const headAngle=Math.atan2(dot(v,m),dot(v,up))*DEG;
+    if(Math.abs(headAngle)>65) throw new Error('Check the ear and eye marks or retake the side-on photo.');
+    return {source:'photo',pose:'back',headAngle,units:'px',waistPct:0,tilt:0};
+  }
+
+  function fitAdvice(r,layers) {
+    const angle=r.headAngle, back=r.pose==='back';
+    const direction=back ? (r.feel==='tucked'?-1:r.feel==='extended'?1:0) : (angle>5?-1:angle< -5?1:0);
+    const target=layers===null?null:Math.max(0,Math.min(4,layers+direction));
+    const change=layers===null?direction:target-layers;
+    const text=direction===0?'Keep this setup for a few nights if comfortable.':
+      change===0?'At the adjustment limit. If uncomfortable, compare a different pillow.':
+      (direction>0?'Try a slightly higher setup':'Try a slightly lower setup')+
+      (layers!==null?' (one layer '+(direction>0?'added':'removed')+')':'')+
+      ', then compare comfort and the photo.';
+    return {layers:target,change,action:direction===0?'keep':change===0?'limit':direction>0?'add':'remove',text};
+  }
   // ---------- Depth mode: point cloud in metres, world y up ----------
   // opts: {camera: [x, y, z], headSide: 'left' | 'right', slice: metres}
   function mattressHeight(points) {
@@ -274,7 +304,8 @@
     return {points: pts, camera: [0.45, 0.30, 1.4], headSide: 'left'};
   }
 
-  const api = {THRESHOLDS, LIMITS, PILLOW, plausibility, pillowAdvice, bestSetup, headLabel, measures, analyseLandmarks, analyseDepth, spineProfile, landmarksFromProfile, interpret, syntheticScan, mattressHeight};
+  const api = {analyseBack, fitAdvice, THRESHOLDS, LIMITS, PILLOW, plausibility, pillowAdvice, bestSetup, headLabel, measures, analyseLandmarks, analyseDepth, spineProfile, landmarksFromProfile, interpret, syntheticScan, mattressHeight};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Posture = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+

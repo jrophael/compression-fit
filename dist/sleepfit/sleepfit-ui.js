@@ -26,12 +26,14 @@
     if (missing) { $('prepareError').textContent = 'Please tick the ' + missing + ' remaining item' + (missing > 1 ? 's' : '') + ' in the checklist first.'; return; }
     $('prepareError').textContent = '';
     demoMode = false; records = []; mode = 'baseline';
+    $('pose').value = $('side').value==='Back'?'back':'side';
+    $('pose').disabled = $('side').value!=='Combination';
     startCapture(Number($('layers').value), $('setup').value);
   };
 
   // ---------- Capture and marking ----------
   const canvas = $('canvas'), ctx = canvas.getContext('2d');
-  const MARKS = [
+  const SIDE_MARKS = [
     {key: 'occiput', text: 'Back of the head (middle of the skull)'},
     {key: 'c7', text: 'Base of the neck (bony bump where neck meets shoulders)'},
     {key: 'waist', text: 'Spine at the narrowest part of the waist'},
@@ -41,12 +43,27 @@
     {key: 'refA', text: 'One end of the A4 sheet', optional: true},
     {key: 'refB', text: 'Other end of the A4 sheet', optional: true}
   ];
+  const BACK_MARKS = [
+    {key:'ear',text:'Centre of the visible ear canal (tragus)'},
+    {key:'eye',text:'Outer corner of the visible eye'},
+    {key:'shoulder',text:'Centre of the visible shoulder'},
+    {key:'hip',text:'Side of the hip'},
+    ...SIDE_MARKS.slice(4)
+  ];
+  const pose = () => $('pose').value;
+  const marks = () => pose()==='back' ? BACK_MARKS : SIDE_MARKS;
+  const positionLabel = r => r.pose==='back'?'Back':'Side';
+  const samePosition = r => records.filter(x => x.pose===r.pose);
+  const label = r => r.pose==='back' ? ('ear–eye orientation: approx. '+(Math.round(r.headAngle/5)*5)+'°') : (r.headAngle>5?'head appears raised':r.headAngle< -5?'head appears lowered':'no large tilt seen');
   let image = null, points = [], skipA4 = false, cross = null, drag = -1;
 
-  const needed = () => (skipA4 || !$('useA4').checked ? 6 : 8);
+  const needed = () => (pose() === 'back' || skipA4 || !$('useA4').checked ? 6 : 8);
 
   function startCapture(layers, note) {
     image = null; points = []; skipA4 = false; cross = null;
+    $('loaded').value = ''; $('backFeel').value='neutral'; $('backFeelWrap').classList.toggle('hidden',pose()!=='back');
+    $('captureGuide').textContent = pose()==='back'?'Lie face up, photograph directly from the side with your face in profile. Show the ear, eye, shoulder, hip and bed edge.':'Lie on your usual side, photograph straight from behind. Show the back of your head, neck, waist, hips and mattress edge.';
+    $('captureHelp').textContent = 'Keep the phone level and perpendicular. Choose or take the photo, then mark the numbered points. Drag to correct them.';
     $('photo').value = ''; $('quality').value = 'uncertain';
     $('layersNow').value = String(layers);
     $('layersNowWrap').classList.toggle('hidden', !adjustable());
@@ -56,17 +73,18 @@
     $('fileStatus').textContent = 'No photograph selected.';
     $('captureTitle').textContent = mode === 'baseline' ? 'Baseline photo' : 'Photo of your next setup';
     $('captureError').textContent = '';
-    $('depthBox').classList.toggle('hidden', !(window.compressionFitApp && window.compressionFitApp.posture));
+    $('depthBox').classList.toggle('hidden', !(pose()==='side' && window.compressionFitApp && window.compressionFitApp.posture));
     draw(); show('capture');
   }
 
+  $('pose').onchange = () => startCapture(Number($('layersNow').value),$('change').value);
   function draw() {
     ctx.fillStyle = '#e4efec'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     if (image) ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
     else { ctx.fillStyle = '#486c69'; ctx.font = '24px system-ui'; ctx.fillText('Choose a photo to begin', 30, 60); }
     const r = Math.max(7, canvas.width / 110);
     ctx.lineWidth = Math.max(3, canvas.width / 300);
-    const spine = points.slice(0, 4);
+    const spine = points.slice(0, pose()==='back'?2:4);
     if (spine.length > 1) { ctx.strokeStyle = '#f5b962'; ctx.beginPath(); spine.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke(); }
     if (points.length >= 6) { ctx.strokeStyle = '#5eeeff'; ctx.beginPath(); ctx.moveTo(...points[4]); ctx.lineTo(...points[5]); ctx.stroke(); }
     if (points.length >= 8) { ctx.strokeStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(...points[6]); ctx.lineTo(...points[7]); ctx.stroke(); }
@@ -87,25 +105,33 @@
 
   function updateStatus() {
     const n = needed();
-    $('marks').replaceChildren(...MARKS.slice(0, $('useA4').checked ? 8 : 6).map((m, i) => {
+    $('marks').replaceChildren(...marks().slice(0, pose() !== 'back' && $('useA4').checked ? 8 : 6).map((m, i) => {
       const li = document.createElement('li');
       li.textContent = m.text;
       if (m.optional) li.classList.add('opt');
       if (i < points.length) li.classList.add('done'); else if (i === points.length && i < n) li.classList.add('next');
       return li;
     }));
-    $('markStatus').textContent = !image ? 'Waiting for photo' : points.length < n ? 'Mark point ' + (points.length + 1) + ' of ' + n + ': ' + MARKS[points.length].text : 'All points marked. Drag any point to fine-tune.';
-    $('skipA4').classList.toggle('hidden', !(image && $('useA4').checked && !skipA4 && points.length === 6));
+    $('markStatus').textContent = !image ? 'Waiting for photo' : points.length < n ? 'Mark point ' + (points.length + 1) + ' of ' + n + ': ' + marks()[points.length].text : 'All points marked. Drag any point to fine-tune.';
+    $('skipA4').classList.toggle('hidden', !(image && pose() !== 'back' && $('useA4').checked && !skipA4 && points.length === 6));
     const ready = image && points.length === n;
-    const good = $('quality').value === 'good';
+    let issues=[];
+    if(ready){
+      if(image.naturalWidth<640 || image.naturalHeight<400) issues.push('Photo resolution is low.');
+      if(points.some(p=>p[0]<0||p[1]<0||p[0]>canvas.width||p[1]>canvas.height)) issues.push('A marker is outside the photo.');
+      if(Math.hypot(points[5][0]-points[4][0],points[5][1]-points[4][1])<canvas.width*.25) issues.push('Separate mattress marks across the image.');
+      if(needed()===8 && Math.hypot(points[7][0]-points[6][0],points[7][1]-points[6][1])<canvas.width*.08) issues.push('Calibration marks are too close.');
+    }
+    const good = $('quality').value === 'good' && !issues.length;
     $('record').disabled = !(ready && good);
     $('recordHint').textContent = !image ? '' : !ready ? 'Mark all the points to record this setup.'
-      : !good ? 'Check the photo, then set “Photo check” to “Points clear, camera level, usual position” to record. If it is hard to see, retake the photo.' : '';
+      : issues.length ? issues.join(' ') : !good ? 'Check the photo, then set “Photo check” to “Points clear, camera level, usual position” to record. If it is hard to see, retake the photo.' : '';
   }
 
   $('photo').onchange = () => {
     const f = $('photo').files[0];
     if (!f) return;
+    image=null; points=[]; $('quality').value='uncertain'; draw();
     const url = URL.createObjectURL(f), im = new Image();
     im.onload = () => {
       canvas.width = Math.min(1400, im.naturalWidth);
@@ -122,7 +148,8 @@
   canvas.addEventListener('pointerdown', e => {
     if (!image) return;
     const p = toCanvas(e);
-    const grab = 28 * canvas.width / canvas.getBoundingClientRect().width;
+    // Small grab zone while points remain to be placed, so close landmarks (ear and eye) can both be placed.
+    const grab = (points.length < needed() ? 10 : 28) * canvas.width / canvas.getBoundingClientRect().width;
     const hit = points.findIndex(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < grab);
     if (hit >= 0) drag = hit;
     else if (points.length < needed()) { points.push(p); drag = points.length - 1; }
@@ -149,33 +176,35 @@
 
   function landmarks() {
     const L = {};
-    MARKS.forEach((m, i) => { if (points[i]) L[m.key] = points[i]; });
+    marks().forEach((m, i) => { if (points[i]) L[m.key] = points[i]; });
     if (points.length === 8) L.refCm = 29.7; else { delete L.refA; delete L.refB; }
     return L;
   }
 
   function addRecord(r, extra) {
     const layers = adjustable() ? Number($('layersNow').value) : null;
-    const rec = Object.assign({
+    if($('loaded').value!==''&&!$('loaded').checkValidity()){ $('captureError').textContent='Enter a loaded height between 0 and 30 cm, or leave blank.';return;}
+    const rec = Object.assign({pose:pose(), feel: $('backFeel').value, loaded:$('loaded').value===''?null:Number($('loaded').value),
       label: $('change').value.trim() || (mode === 'baseline' ? 'Baseline' : 'Setup ' + (records.length + 1)),
       layers, comfort: Number($('trialComfort').value), quality: $('quality').value
     }, r, extra);
-    rec.advice = layers === null ? null : P.pillowAdvice(rec, layers);
+    rec.advice = P.fitAdvice(rec, layers);
     records.push(rec);
     compare();
   }
 
   $('record').onclick = () => {
     let r;
-    try { r = P.analyseLandmarks(landmarks()); } catch (e) { $('captureError').textContent = e.message; return; }
-    const problems = P.plausibility(r);
+    try { r = pose()==='back'?P.analyseBack(landmarks()):P.analyseLandmarks(landmarks()); } catch (e) { $('captureError').textContent = e.message; return; }
+    const problems = pose()==='back'?[]:P.plausibility(r);
     if (problems.length) { $('captureError').textContent = problems.join(' '); return; }
-    addRecord(r, {source: 'photo'});
+    addRecord(r, {source: 'photo', thumbnail: canvas.toDataURL('image/jpeg',0.65)});
   };
 
   // ---------- iPhone 3D scan ----------
   $('depthScan').onclick = () => window.webkit.messageHandlers.compressionFit.postMessage({action: 'postureScan'});
   window.receivePostureScan = data => {
+    if(pose()!=='side') return;
     try {
       const r = P.analyseDepth(data.points, {camera: data.camera, headSide: data.headSide || 'left'});
       const problems = P.plausibility(r);
@@ -198,75 +227,92 @@
     const ref = s => pts.c7[1] + t[1] * (s - pts.c7[0]) / t[0];
     const path = line.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' ');
     const dot = (p, label, dy) => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="5" fill="#f5b962"/><text x="${X(p[0]).toFixed(1)}" y="${(Y(p[1]) + dy).toFixed(1)}" fill="#e8f4f1" font-size="13" text-anchor="middle">${label}</text>`;
-    return `<figure class="diagram"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Your spine line compared with a straight line">
+    return `<figure class="diagram"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Visible landmark line compared with a reference">
       <rect x="0" y="${H - 34}" width="${W}" height="34" fill="#1c3442"/><text x="${W - 10}" y="${H - 12}" fill="#7fa4b6" font-size="12" text-anchor="end">mattress</text>
       <line x1="${X(pts.occiput[0])}" y1="${Y(ref(pts.occiput[0]))}" x2="${X(pts.sacrum[0])}" y2="${Y(ref(pts.sacrum[0]))}" stroke="#fff" stroke-opacity=".55" stroke-dasharray="6 6" stroke-width="2"/>
       <path d="${path}" fill="none" stroke="#f5b962" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="${X(pts.occiput[0])}" cy="${Y(pts.occiput[1])}" r="${Math.max(14, 9 * sx)}" fill="#f5b962" fill-opacity=".15" stroke="#f5b962"/>
       ${dot(pts.occiput, 'Head', -22)}${dot(pts.c7, 'Neck', -14)}${dot(pts.waist, 'Waist', 22)}${dot(pts.sacrum, 'Pelvis', -14)}</svg>
-      <figcaption>Orange: your latest setup. Dashed: a straight line from the base of your neck to your pelvis. Height differences are drawn twice their real size.</figcaption></figure>`;
+      <figcaption>Orange: estimated external landmarks. Dashed: a geometric comparison guide, not an anatomical target. Vertical differences are exaggerated.</figcaption></figure>`;
   }
 
   function table(best) {
-    const anyLayers = records.some(r => r.layers !== null);
-    const head = ['Setup'].concat(anyLayers ? ['Layers'] : [], ['Head and neck', 'Waist', 'Hips vs shoulders', 'Comfort']);
-    const rows = records.map(r => {
-      const waist = r.units === 'cm' ? fmt(r.waistCm) + ' cm' : fmt(r.waistPct) + '%';
-      const cells = [esc(r.label) + (r === best && records.length > 1 ? '<span class="tag">best so far</span>' : '') + (r.quality !== 'good' ? '<span class="tag warn">check photo</span>' : '')]
-        .concat(anyLayers ? [r.layers === null ? '–' : String(r.layers)] : [],
-          [fmt(r.headAngle) + '°<span class="cell-note">' + P.headLabel(r.headAngle) + '</span>', waist, fmt(r.tilt) + '°', r.comfort + '/10']);
-      return '<tr' + (r === best && records.length > 1 ? ' class="best"' : '') + '>' + cells.map((c, i) => '<td' + (i ? ' class="num"' : '') + '>' + c + '</td>').join('') + '</tr>';
-    });
-    return '<div class="table-wrap"><table><thead><tr>' + head.map(h => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>' +
-      '<p class="hint">Head and neck: minus means the head drops towards the mattress (pillow too low), plus means it is pushed up (pillow too high). Waist: minus dips towards the mattress. Hips vs shoulders: plus means the hips sit lower.</p>';
+    return '<div class="table-wrap"><table><thead><tr><th>Setup</th><th>Position</th><th>Layers</th><th>Visible orientation</th><th>Loaded height</th><th>Comfort</th></tr></thead><tbody>'+
+      records.map(r=>'<tr'+(r===best?' class="best"':'')+'><td>'+esc(r.label)+'</td><td>'+positionLabel(r)+'</td><td>'+(r.layers??'—')+'</td><td>'+label(r)+'</td><td>'+(Number.isFinite(r.loaded)?r.loaded+' cm':'—')+'</td><td>'+r.comfort+'/10</td></tr>').join('')+
+      '</tbody></table></div><p class="hint">Orientation descriptions are provisional visual cues, not a health or alignment score.</p>';
   }
-
-  function adviceBlock(r) {
-    const findings = P.interpret(r);
-    const pillow = r.advice ? r.advice.text : findings[0].text;
-    const change = r.advice ? r.advice.action !== 'keep' : findings[0].level === 'change';
-    const mattress = findings.slice(1).filter(f => f.level === 'change').map(f => '<li>' + esc(f.text) + '</li>').join('');
-    return `<div class="advice ${change ? 'change' : ''}"><strong>Next step for your pillow</strong><div class="big">${esc(pillow)}</div>
-      ${mattress ? '<p>Also noticed:</p><ul>' + mattress + '</ul>' : '<p class="sub">Shoulders, waist and hips look reasonably level.</p>'}</div>`;
+  function photoCompare(r) {
+    const group=samePosition(r), first=group[0];
+    const figure=(x,title)=>x.thumbnail?'<figure><img class="comparePhoto" src="'+x.thumbnail+'" alt="'+title+' marked photograph"><figcaption>'+title+': '+esc(x.label)+'</figcaption></figure>':'';
+    return '<div class="grid">'+figure(first,'Baseline')+(group.length>1?figure(r,'Latest'):'')+'</div>';
   }
-
+  function bestFor(group) {return group.reduce((b,r)=>!b||r.comfort>b.comfort?r:b,null);}
   function compare() {
-    const latest = records[records.length - 1], first = records[0], best = P.bestSetup(records);
-    let html = demoMode ? '<p class="warning">Simulated example: not a real measurement.</p>' : '';
-    html += adviceBlock(latest) + diagramSVG(latest) + table(best);
-    if (records.length > 1) {
-      html += `<div class="metrics"><div class="metric"><small>Head angle, baseline → latest</small><strong>${fmt(first.headAngle)}° → ${fmt(latest.headAngle)}°</strong><small>closer to 0 is straighter</small></div>
-        <div class="metric"><small>Comfort change</small><strong>${fmt(latest.comfort - first.comfort, 0)}</strong><small>points out of 10</small></div>
-        <div class="metric"><small>Best so far</small><strong>${esc(best.label)}</strong><small>comfort first, then alignment</small></div></div>`;
-    }
-    $('comparison').innerHTML = html;
-    show('compare');
+    const latest=records[records.length-1], group=samePosition(latest), best=bestFor(group);
+    let html=demoMode?'<p class="warning">Simulated example: not a real measurement.</p>':'';
+    html+='<div class="advice"><strong>Try next · '+positionLabel(latest)+'</strong><div class="big">'+esc(latest.advice.text)+'</div><p>Change only one thing at a time. Do not force an angle; stop if uncomfortable.</p></div>';
+    html+=photoCompare(latest)+(latest.pose==='side'&&!latest.thumbnail?diagramSVG(latest):'')+table(best);
+    if(group.length>1) html+='<p>Comfort change in this position: '+fmt(latest.comfort-group[0].comfort,0)+' / 10.</p>';
+    if($('side').value==='Combination') html+='<p class="note">Test the same layer settings in both positions. Choose a comfortable compromise, not an average of the geometry.</p>';
+    $('comparison').innerHTML=html; show('compare');
   }
 
   function nextSetup() {
+    if(!records.length){show('prepare');return;}
     if (demoMode) { demoNext(); return; }
     const latest = records[records.length - 1];
     mode = 'trial';
-    const next = latest && latest.advice ? latest.advice.layers : (latest ? latest.layers : 0);
-    startCapture(next === null ? 0 : next, latest && latest.advice && latest.advice.change ? (latest.advice.change > 0 ? 'Added ' : 'Removed ') + Math.abs(latest.advice.change) + ' layer' + (Math.abs(latest.advice.change) > 1 ? 's' : '') : '');
+    const combo=$('side').value==='Combination';
+    if(combo && !records.some(r=>r.pose!==latest.pose&&r.layers===latest.layers&&r.label===latest.label)){
+      $('pose').value=latest.pose==='back'?'side':'back';
+      startCapture(latest.layers??0,latest.label); return;
+    }
+    let src = latest, note = '';
+    if (combo) {
+      const lastOf = pos => [...records].reverse().find(r => r.pose === pos);
+      const side = lastOf('side'), back = lastOf('back');
+      const sDir = side ? Math.sign(side.advice.change) : 0, bDir = back ? Math.sign(back.advice.change) : 0;
+      if (sDir && bDir && sDir !== bDir) { src = null; note = 'Positions disagree: same layers, judge by comfort'; }
+      else src = sDir ? side : (bDir ? back : latest);
+      $('pose').value = 'side';
+    }
+    const next = src && src.advice ? src.advice.layers : latest.layers;
+    const ch = src && src.advice ? src.advice.change : 0;
+    startCapture(next === null ? 0 : next, note || (ch ? (ch > 0 ? 'Added ' : 'Removed ') + Math.abs(ch) + ' layer' + (Math.abs(ch) > 1 ? 's' : '') : ''));
   }
   $('another').onclick = nextSetup;
   $('another2').onclick = nextSetup;
 
   // ---------- Profile ----------
   function profile() {
-    const best = P.bestSetup(records);
-    let html = demoMode ? '<p class="warning">Simulated example only.</p>' : '';
-    html += '<p>Sleeping side: ' + esc($('side').value) + (adjustable() ? ' · Pillow: SleepFit adjustable' : ' · Pillow: own pillow') + '</p>';
-    if (best) {
-      html += `<div class="advice"><strong>Your best setup so far</strong><div class="big">${esc(best.label)}${best.layers !== null ? ' · ' + best.layers + ' layer' + (best.layers === 1 ? '' : 's') : ''}</div>
-        <p>Head and neck ${fmt(best.headAngle)}° (${P.headLabel(best.headAngle)}), comfort ${best.comfort}/10. Sleep on it for a few nights before deciding.</p></div>`;
+    let html=demoMode?'<p class="warning">Simulated example only.</p>':'';
+    html+='<p>Usual position: '+esc($('side').value)+' · Mattress: '+esc($('mattress').value)+'</p>';
+    for(const pos of ['side','back']){
+      const best=bestFor(records.filter(r=>r.pose===pos));
+      if(best)html+='<div class="advice"><strong>'+positionLabel(best)+' comfort leader</strong><div class="big">'+esc(best.label)+(best.layers!==null?' · '+best.layers+' layers':'')+'</div><p>'+best.comfort+'/10 immediate comfort. Try over several nights.</p></div>';
     }
-    html += table(best) + '<p class="note">Preference is personal. Compare setups over several nights. These measurements are unvalidated and cannot support a medical recommendation.</p>';
-    $('profileContent').innerHTML = html;
-    show('profile');
+    if($('side').value==='Combination'){
+      const paired=records.filter(r=>r.pose==='side'&&r.layers!==null).map(s=>({s,b:bestFor(records.filter(r=>r.pose==='back'&&r.layers===s.layers&&r.label===s.label))})).filter(x=>x.b);
+      paired.sort((a,b)=>Math.min(b.s.comfort,b.b.comfort)-Math.min(a.s.comfort,a.b.comfort));
+      html+='<p class="note">'+(paired.length?'Best paired comfort so far: '+paired[0].s.layers+' layers.':'Record both positions at the same layer setting before choosing a compromise.')+'</p>';
+    }
+    $('profileContent').innerHTML=records.length?html+table(null):'<p>Open a new fitting to compare pillows, or continue your diary below.</p>';
+    renderDiary(); show('profile');
+  }
+  const diaryKey='sleepfit-v03-diary';
+  function renderDiary(){
+    const panel=$('diary');
+    if(demoMode){panel.textContent='Seven-night diary is available after a real fitting.';return;}
+    let data={};try{data=JSON.parse(localStorage.getItem(diaryKey)||'{}')||{};}catch{}
+    panel.innerHTML='<h3>Seven-night comfort diary</h3><p>Track the setup you actually slept on. Saved on this device only; no photos stored.</p>'+
+      '<div class="table-wrap"><table><thead><tr><th>Night</th><th>Setup / layers</th><th>Morning comfort (0–10)</th></tr></thead><tbody>'+
+      Array.from({length:7},(_,i)=>'<tr><td>'+(i+1)+'</td><td><input aria-label="Night '+(i+1)+' setup" data-night="'+i+'" data-kind="setup" type="text" value="'+esc(data[i]?.setup||'')+'"></td><td><select aria-label="Night '+(i+1)+' comfort" data-night="'+i+'" data-kind="comfort"><option value="">Not recorded</option>'+Array.from({length:11},(_,n)=>'<option '+(String(data[i]?.comfort)===String(n)?'selected':'')+'>'+n+'</option>').join('')+'</select></td></tr>').join('')+
+      '</tbody></table></div><p id="diaryStatus" role="status"></p><button class="secondary" id="clearDiary">Clear diary</button>';
+    panel.querySelectorAll('[data-night]').forEach(el=>el.onchange=()=>{const i=el.dataset.night;data[i]??={};data[i][el.dataset.kind]=el.value;try{localStorage.setItem(diaryKey,JSON.stringify(data));$('diaryStatus').textContent='Saved on this device.';}catch{$('diaryStatus').textContent='Storage unavailable; diary will not persist.';}});
+    $('clearDiary').onclick=()=>{if(confirm('Clear your seven-night diary?')){try{localStorage.removeItem(diaryKey);}catch{} renderDiary();}};
   }
   $('report').onclick = profile;
+  $('openDiary').onclick=()=>{if(demoMode){records=[];demoMode=false;} profile();};
   $('toCompare').onclick = () => { if (records.length) compare(); };
   $('print').onclick = () => window.print();
   $('restart').onclick = () => { records = []; demoMode = false; mode = 'baseline'; show('prepare'); };
@@ -279,9 +325,9 @@
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
   $('download').onclick = () => {
-    const head = ['type', 'setup', 'source', 'layers', 'head_neck_angle_deg', 'head_label', 'waist_percent', 'waist_cm', 'hips_vs_shoulders_deg', 'suggested_pillow_change_cm', 'comfort_0_10', 'photo_check', 'advice'];
-    const rows = records.map(r => [demoMode ? 'simulated' : 'experimental', r.label, r.source, r.layers, r.headAngle.toFixed(2), P.headLabel(r.headAngle), r.waistPct.toFixed(2),
-      r.units === 'cm' ? r.waistCm.toFixed(2) : '', r.tilt.toFixed(2), r.units === 'cm' ? r.pillowChangeCm.toFixed(2) : '', r.comfort, r.quality, r.advice ? r.advice.text : ''].map(csvCell).join(','));
+    const head = ['position','loaded_height_cm','type', 'setup', 'source', 'layers', 'approx_visible_orientation_deg', 'head_label', 'waist_percent', 'waist_cm', 'hips_vs_shoulders_deg', 'reserved', 'comfort_0_10', 'photo_check', 'advice'];
+    const rows = records.map(r => [positionLabel(r),r.loaded,demoMode ? 'simulated' : 'experimental', r.label, r.source, r.layers, Math.round(r.headAngle), label(r), r.pose==='back'?'':Math.round(r.waistPct),
+      r.units === 'cm' ? Math.round(r.waistCm) : '', r.pose==='back'?'':Math.round(r.tilt), '', r.comfort, r.quality, r.advice ? r.advice.text : ''].map(csvCell).join(','));
     const url = URL.createObjectURL(new Blob([head.join(',') + '\n' + rows.join('\n')], {type: 'text/csv'}));
     const a = document.createElement('a'); a.href = url; a.download = 'sleepfit-profile.csv'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 500);
@@ -294,7 +340,7 @@
     const scan = P.syntheticScan({headDropDeg: headDrop, waistSagCm: 0.6, hipSinkCm: 1, noiseMm: 2, seed: 4242 + records.length});
     const r = P.analyseDepth(scan.points, scan);
     const rec = Object.assign({label, layers, comfort, quality: 'good', source: 'simulated'}, r);
-    rec.advice = P.pillowAdvice(rec, layers);
+    rec.pose='side'; rec.advice = P.fitAdvice(rec, layers);
     records.push(rec);
   }
   function demoNext() {
@@ -307,9 +353,11 @@
   }
   $('demo').onclick = () => {
     demoMode = true; records = []; mode = 'trial';
+    $('side').value='Left side'; $('pose').value='side';
     $('pillowType').value = 'adjustable'; $('layersWrap').classList.remove('hidden');
     demoState = {drop: 9};
     demoRecord('Original setup, 1 layer (simulated)', 1, demoState.drop, 5);
     compare();
   };
 })();
+
